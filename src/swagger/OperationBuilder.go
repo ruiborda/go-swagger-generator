@@ -3,6 +3,7 @@ package swagger
 import (
 	openapi2 "github.com/ruiborda/go-swagger-generator/src/openapi"
 	entity2 "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
 	"strconv"
 )
 
@@ -40,12 +41,16 @@ func (b *OperationBuilder) Consumes(mimeTypes ...string) openapi2.Operation {
 	b.operation.Consumes = append(b.operation.Consumes, mimeTypes...)
 	return b
 }
-func (b *OperationBuilder) Produce(mimeType string) openapi2.Operation {
+func (b *OperationBuilder) Produce(mimeType mime.MimeType) openapi2.Operation {
 	b.operation.Produces = append(b.operation.Produces, mimeType)
 	return b
 }
-func (b *OperationBuilder) Produces(mimeTypes ...string) openapi2.Operation {
-	b.operation.Produces = append(b.operation.Produces, mimeTypes...)
+func (b *OperationBuilder) Produces(mimeTypes ...mime.MimeType) openapi2.Operation {
+	//b.operation.Produces = append(b.operation.Produces, mimeTypes...)
+	b.operation.Produces = append(
+		b.operation.Produces,
+		mimeTypes...,
+	)
 	return b
 }
 

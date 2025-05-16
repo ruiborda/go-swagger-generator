@@ -1,5 +1,9 @@
 package openapi
 
+import (
+	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
+)
+
 type Operation interface {
 	Summary(summary string) Operation
 	Description(description string) Operation
@@ -8,8 +12,8 @@ type Operation interface {
 	Tags(tags ...string) Operation
 	Consume(mimeType string) Operation
 	Consumes(mimeTypes ...string) Operation
-	Produce(mimeType string) Operation
-	Produces(mimeTypes ...string) Operation
+	Produce(mimeType mime.MimeType) Operation
+	Produces(mimeTypes ...mime.MimeType) Operation
 	Parameter(name, in string, config func(Parameter)) Operation
 	QueryParameter(name string, config func(Parameter)) Operation
 	PathParameter(name string, config func(Parameter)) Operation

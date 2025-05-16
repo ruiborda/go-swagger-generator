@@ -1,0 +1,29 @@
+go:
+  label: Go
+  permalink: /tags/go
+  description: Artículos relacionados con el lenguaje de programación Go (Golang)
+
+swagger:
+  label: Swagger
+  permalink: /tags/swagger
+  description: Documentación y tutoriales sobre Swagger/OpenAPI
+
+gin:
+  label: Gin
+  permalink: /tags/gin
+  description: Artículos relacionados con el framework web Gin para Go
+
+api:
+  label: API
+  permalink: /tags/api
+  description: Guías y mejores prácticas para el desarrollo de APIs
+
+documentacion:
+  label: Documentación
+  permalink: /tags/documentacion
+  description: Recursos sobre cómo documentar APIs y código
+  
+documentation:
+  label: Documentation
+  permalink: /tags/documentation
+  description: Resources on how to document APIs and code

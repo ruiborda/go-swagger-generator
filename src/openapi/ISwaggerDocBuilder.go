@@ -9,6 +9,8 @@ type SwaggerDoc interface {
 	Info(config func(Info)) SwaggerDoc
 	Host(host string) SwaggerDoc
 	BasePath(basePath string) SwaggerDoc
+	Server(url string, config func(Server)) SwaggerDoc
+	Servers(servers ...entity2.ServerEntity) SwaggerDoc
 	Tag(name string, config func(Tag)) SwaggerDoc
 	Scheme(scheme string) SwaggerDoc
 	Schemes(schemes ...string) SwaggerDoc

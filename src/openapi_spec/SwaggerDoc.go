@@ -5,6 +5,7 @@ type SwaggerDocEntity struct {
 	Info                InfoEntity                      `json:"info"`
 	Host                string                          `json:"host,omitempty"`
 	BasePath            string                          `json:"basePath,omitempty"`
+	Servers             []ServerEntity                  `json:"servers,omitempty"`
 	Tags                []TagEntity                     `json:"tags,omitempty"`
 	Schemes             []string                        `json:"schemes,omitempty"`
 	Paths               map[string]PathItemEntity       `json:"paths"`

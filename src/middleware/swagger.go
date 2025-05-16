@@ -82,7 +82,7 @@ func SwaggerGin(config ...SwaggerConfig) gin.HandlerFunc {
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.Header("Pragma", "no-cache")
 			c.Header("Expires", "0")
-			c.JSON(http.StatusOK, swagger.NewSwaggerDocBuilder().Build())
+			c.JSON(http.StatusOK, swagger.Swagger().Build())
 			c.Abort()
 			return
 		}

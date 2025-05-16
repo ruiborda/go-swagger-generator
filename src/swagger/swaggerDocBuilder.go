@@ -16,7 +16,7 @@ type SwaggerDocBuilder struct {
 	definitionsMux sync.Mutex
 }
 
-func NewSwaggerDocBuilder() openapi2.SwaggerDoc {
+func Swagger() openapi2.SwaggerDoc {
 	if swaggerDoc != nil {
 		return swaggerDoc
 	}
@@ -28,6 +28,7 @@ func NewSwaggerDocBuilder() openapi2.SwaggerDoc {
 			Definitions:         make(map[string]entity2.SchemaEntity),
 			Tags:                make([]entity2.TagEntity, 0),
 			Schemes:             make([]string, 0),
+			Servers:             make([]entity2.ServerEntity, 0),
 			SecurityDefinitions: make(map[string]entity2.SecuritySchemeEntity),
 		},
 	}
@@ -52,6 +53,19 @@ func (b *SwaggerDocBuilder) Host(host string) openapi2.SwaggerDoc {
 
 func (b *SwaggerDocBuilder) BasePath(basePath string) openapi2.SwaggerDoc {
 	b.doc.BasePath = basePath
+	return b
+}
+
+func (b *SwaggerDocBuilder) Server(url string, config func(builder openapi2.Server)) openapi2.SwaggerDoc {
+	server := entity2.ServerEntity{URL: url}
+	serverBuilder := &ServerBuilder{server: &server}
+	config(serverBuilder)
+	b.doc.Servers = append(b.doc.Servers, server)
+	return b
+}
+
+func (b *SwaggerDocBuilder) Servers(servers ...entity2.ServerEntity) openapi2.SwaggerDoc {
+	b.doc.Servers = append(b.doc.Servers, servers...)
 	return b
 }
 
