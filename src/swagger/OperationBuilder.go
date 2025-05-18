@@ -33,11 +33,11 @@ func (b *OperationBuilder) Tags(tags ...string) openapi2.Operation {
 	b.operation.Tags = append(b.operation.Tags, tags...)
 	return b
 }
-func (b *OperationBuilder) Consume(mimeType string) openapi2.Operation {
+func (b *OperationBuilder) Consume(mimeType mime.MimeType) openapi2.Operation {
 	b.operation.Consumes = append(b.operation.Consumes, mimeType)
 	return b
 }
-func (b *OperationBuilder) Consumes(mimeTypes ...string) openapi2.Operation {
+func (b *OperationBuilder) Consumes(mimeTypes ...mime.MimeType) openapi2.Operation {
 	b.operation.Consumes = append(b.operation.Consumes, mimeTypes...)
 	return b
 }

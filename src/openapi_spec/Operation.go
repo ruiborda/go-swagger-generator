@@ -9,7 +9,7 @@ type OperationEntity struct {
 	Summary      string                       `json:"summary,omitempty"`
 	Description  string                       `json:"description,omitempty"`
 	OperationID  string                       `json:"operationId,omitempty"`
-	Consumes     []string                     `json:"consumes,omitempty"`
+	Consumes     []mime.MimeType              `json:"consumes,omitempty"`
 	Produces     []mime.MimeType              `json:"produces,omitempty"`
 	Parameters   []ParameterEntity            `json:"parameters,omitempty"`
 	Responses    map[string]ResponseEntity    `json:"responses"`

@@ -36,7 +36,7 @@ var _ = swagger.Swagger().Path("/user").
 			Description("This can only be done by the logged in user.").
 			OperationID("createUser").
 			Tag("user").
-			Consumes(string(mime.ApplicationJSON)).
+			Consumes(mime.ApplicationJSON).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			BodyParameter(func(p openapi.Parameter) {
 				p.Description("Created user object").Required(true).SchemaFromDTO(&User{})
@@ -58,7 +58,7 @@ var _ = swagger.Swagger().Path("/user/createWithArray").
 		op.Summary("Creates list of users with given input array").
 			OperationID("createUsersWithArrayInput").
 			Tag("user").
-			Consumes(string(mime.ApplicationJSON)).
+			Consumes(mime.ApplicationJSON).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			BodyParameter(func(p openapi.Parameter) {
 				p.Description("List of user object").Required(true).
@@ -84,7 +84,7 @@ var _ = swagger.Swagger().Path("/user/createWithList").
 		op.Summary("Creates list of users with given input array").
 			OperationID("createUsersWithListInput").
 			Tag("user").
-			Consumes(string(mime.ApplicationJSON)).
+			Consumes(mime.ApplicationJSON).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			BodyParameter(func(p openapi.Parameter) {
 				p.Description("List of user object").Required(true).
@@ -195,7 +195,7 @@ var _ = swagger.Swagger().Path("/user/{username}").
 			Description("This can only be done by the logged in user.").
 			OperationID("updateUser").
 			Tag("user").
-			Consumes(string(mime.ApplicationJSON)).
+			Consumes(mime.ApplicationJSON).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			PathParameter("username", func(p openapi.Parameter) {
 				p.Description("name that need to be updated").Type("string")

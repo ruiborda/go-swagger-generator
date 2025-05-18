@@ -126,7 +126,7 @@ var _ = swagger.Swagger().Path("/pet").
 		operation.Summary("Add a new pet to the store").
 			OperationID("addPet").
 			Tag("pet").
-			Consumes(string(mime.ApplicationJSON), string(mime.ApplicationXML)).
+			Consumes(mime.ApplicationJSON, mime.ApplicationXML).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			BodyParameter(func(p openapi.Parameter) {
 				p.Description("Pet object that needs to be added to the store").
@@ -156,7 +156,7 @@ var _ = swagger.Swagger().Path("/pet").
 		op.Summary("Update an existing pet").
 			OperationID("updatePet").
 			Tag("pet").
-			Consumes(string(mime.ApplicationJSON), string(mime.ApplicationXML)).
+			Consumes(mime.ApplicationJSON, mime.ApplicationXML).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			BodyParameter(func(p openapi.Parameter) {
 				p.Description("Pet object that needs to be added to the store").

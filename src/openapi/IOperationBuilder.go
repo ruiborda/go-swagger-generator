@@ -10,8 +10,8 @@ type Operation interface {
 	OperationID(id string) Operation
 	Tag(tag string) Operation
 	Tags(tags ...string) Operation
-	Consume(mimeType string) Operation
-	Consumes(mimeTypes ...string) Operation
+	Consume(mimeType mime.MimeType) Operation
+	Consumes(mimeTypes ...mime.MimeType) Operation
 	Produce(mimeType mime.MimeType) Operation
 	Produces(mimeTypes ...mime.MimeType) Operation
 	Parameter(name, in string, config func(Parameter)) Operation

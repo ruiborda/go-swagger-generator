@@ -30,6 +30,7 @@ var _ = swagger.Swagger().Path("/users/{id}").
 	Get(func(op openapi.Operation) {
 		op.Summary("Find user by ID").
 			Tag("UserController").
+			Consumes(mime.ApplicationJSON).
 			Produce(mime.ApplicationJSON).
 			PathParameter("id", func(p openapi.Parameter) {
 				p.

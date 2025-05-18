@@ -61,7 +61,7 @@ var _ = swagger.Swagger().Path("/store/order").
 		op.Summary("Place an order for a pet").
 			OperationID("placeOrder").
 			Tag("store").
-			Consumes(string(mime.ApplicationJSON)).
+			Consumes(mime.ApplicationJSON).
 			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			BodyParameter(func(p openapi.Parameter) {
 				p.Description("order placed for purchasing the pet").Required(true).SchemaFromDTO(&Order{})
