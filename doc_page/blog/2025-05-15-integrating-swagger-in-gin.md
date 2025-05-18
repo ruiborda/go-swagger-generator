@@ -29,7 +29,7 @@ The first thing we need to do is install both Gin and the Swagger generator:
 go get github.com/gin-gonic/gin
 
 # Install Go Swagger Generator
-go get github.com/ruiborda/go-swagger-generator
+go get -u github.com/ruiborda/go-swagger-generator@v1
 ```
 
 ## Step 2: Defining models (DTOs)

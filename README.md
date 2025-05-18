@@ -16,7 +16,7 @@ Go Swagger Generator is a library that makes it easy to generate OpenAPI documen
 
 ```bash
 # Install Go Swagger Generator
-go get github.com/ruiborda/go-swagger-generator
+go get -u github.com/ruiborda/go-swagger-generator@v1
 ```
 
 If you're using Gin:
