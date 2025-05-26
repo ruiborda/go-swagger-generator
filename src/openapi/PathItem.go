@@ -9,5 +9,5 @@ type PathItem interface {
 	Head(config func(Operation)) PathItem
 	Patch(config func(Operation)) PathItem
 	Parameter(name, in string, config func(Parameter)) PathItem
-	Doc() SwaggerDoc
+	Doc() SwaggerDocBuilder
 }

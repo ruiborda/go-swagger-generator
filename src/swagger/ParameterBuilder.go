@@ -2,103 +2,91 @@ package swagger
 
 import (
 	"fmt"
-	openapi2 "github.com/ruiborda/go-swagger-generator/src/openapi"
-	entity2 "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	openapi "github.com/ruiborda/go-swagger-generator/src/openapi"
+	entity "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
 )
 
 type ParameterBuilder struct {
-	param      *entity2.ParameterEntity
+	param      *entity.Parameter
 	docBuilder *SwaggerDocBuilder
 }
 
-func (b *ParameterBuilder) Description(description string) openapi2.Parameter {
+func (b *ParameterBuilder) Description(description string) openapi.Parameter {
 	b.param.Description = description
 	return b
 }
-func (b *ParameterBuilder) Required(required bool) openapi2.Parameter {
+
+func (b *ParameterBuilder) Required(required bool) openapi.Parameter {
 	b.param.Required = required
 	return b
 }
-func (b *ParameterBuilder) Schema(s entity2.SchemaEntity) openapi2.Parameter {
-	b.param.Schema = &s
+
+func (b *ParameterBuilder) Deprecated(deprecated bool) openapi.Parameter {
+	b.param.Deprecated = deprecated
 	return b
 }
-func (b *ParameterBuilder) SchemaFromDTO(dto interface{}) openapi2.Parameter {
-	dtoName, err := b.docBuilder.DefinitionFromDTO(dto)
-	if err != nil {
-		// Consider logging or returning error in a real application
-		fmt.Printf("Error adding DTO definition for parameter schema: %v\n", err)
-		return b
-	}
-	b.param.Schema = &entity2.SchemaEntity{Ref: "#/definitions/" + dtoName}
-	return b
-}
-func (b *ParameterBuilder) Type(paramType string) openapi2.Parameter {
-	b.param.Type = paramType
-	return b
-}
-func (b *ParameterBuilder) Format(format string) openapi2.Parameter {
-	b.param.Format = format
-	return b
-}
-func (b *ParameterBuilder) AllowEmptyValue(allow bool) openapi2.Parameter {
+
+func (b *ParameterBuilder) AllowEmptyValue(allow bool) openapi.Parameter {
 	b.param.AllowEmptyValue = allow
 	return b
 }
-func (b *ParameterBuilder) Items(config func(builder openapi2.Schema)) openapi2.Parameter {
-	itemsSchema := &entity2.SchemaEntity{}
-	schemaBuilder := &SchemaBuilder{schema: itemsSchema, docBuilder: b.docBuilder}
+
+func (b *ParameterBuilder) initSchema() {
+	if b.param.Schema == nil {
+		b.param.Schema = &entity.Schema{}
+	}
+}
+
+func (b *ParameterBuilder) Schema(config func(openapi.Schema)) openapi.Parameter {
+	b.initSchema()
+	schemaBuilder := &SchemaBuilder{schema: b.param.Schema, docBuilder: b.docBuilder}
 	config(schemaBuilder)
-	b.param.Items = itemsSchema
 	return b
 }
-func (b *ParameterBuilder) CollectionFormat(format string) openapi2.Parameter {
-	b.param.CollectionFormat = format
+
+func (b *ParameterBuilder) SchemaFromDTO(dto interface{}) openapi.Parameter {
+	dtoName, err := b.docBuilder.SchemaFromDTO(dto)
+	if err != nil {
+		fmt.Printf("Error adding DTO definition for parameter schema: %v\n", err)
+		return b
+	}
+	b.initSchema()
+	b.param.Schema.Ref = "#/components/schemas/" + dtoName
 	return b
 }
-func (b *ParameterBuilder) Default(value interface{}) openapi2.Parameter {
-	b.param.Default = value
+
+func (b *ParameterBuilder) SchemaRef(ref string) openapi.Parameter {
+	b.initSchema()
+	b.param.Schema.Ref = ref
 	return b
 }
-func (b *ParameterBuilder) Maximum(max float64, exclusive bool) openapi2.Parameter {
-	b.param.Maximum = &max
-	b.param.ExclusiveMaximum = exclusive
+
+func (b *ParameterBuilder) Style(style string) openapi.Parameter {
+	b.param.Style = style
 	return b
 }
-func (b *ParameterBuilder) Minimum(min float64, exclusive bool) openapi2.Parameter {
-	b.param.Minimum = &min
-	b.param.ExclusiveMinimum = exclusive
+
+func (b *ParameterBuilder) Explode(explode bool) openapi.Parameter {
+	b.param.Explode = explode
 	return b
 }
-func (b *ParameterBuilder) MaxLength(max int) openapi2.Parameter {
-	b.param.MaxLength = &max
+
+func (b *ParameterBuilder) Example(value interface{}) openapi.Parameter {
+	b.param.Example = value
 	return b
 }
-func (b *ParameterBuilder) MinLength(min int) openapi2.Parameter {
-	b.param.MinLength = &min
+
+func (b *ParameterBuilder) Examples(name string, config func(openapi.Example)) openapi.Parameter {
+	if b.param.Examples == nil {
+		b.param.Examples = make(map[string]*entity.ExampleRef)
+	}
+	ex := entity.Example{}
+	exBuilder := &ExampleBuilder{example: &ex}
+	config(exBuilder)
+	b.param.Examples[name] = &entity.ExampleRef{Example: &ex}
 	return b
 }
-func (b *ParameterBuilder) Pattern(pattern string) openapi2.Parameter {
-	b.param.Pattern = pattern
-	return b
-}
-func (b *ParameterBuilder) MaxItems(max int) openapi2.Parameter {
-	b.param.MaxItems = &max
-	return b
-}
-func (b *ParameterBuilder) MinItems(min int) openapi2.Parameter {
-	b.param.MinItems = &min
-	return b
-}
-func (b *ParameterBuilder) UniqueItems(unique bool) openapi2.Parameter {
-	b.param.UniqueItems = unique
-	return b
-}
-func (b *ParameterBuilder) Enum(values ...interface{}) openapi2.Parameter {
-	b.param.Enum = values
-	return b
-}
-func (b *ParameterBuilder) MultipleOf(val float64) openapi2.Parameter {
-	b.param.MultipleOf = &val
+
+func (b *ParameterBuilder) Ref(ref string) openapi.Parameter {
 	return b
 }

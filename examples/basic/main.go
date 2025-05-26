@@ -11,65 +11,74 @@ import (
 )
 
 type UserDto struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID   int    `json:"id" yaml:"id"`
+	Name string `json:"name" yaml:"name"`
 }
 
 func main() {
 	router := gin.Default()
 
-	SwaggerConfig(router)
+	// This will add UserDto to components.schemas
+	_, _ = swagger.Swagger().SchemaFromDTO(&UserDto{})
+
+	ConfigureSwagger(router)
 
 	router.GET("/v1/users/:id", GetUserById)
 
 	fmt.Println("Server running on http://localhost:8080")
+	fmt.Println("Swagger UI available at http://localhost:8080/")
+	fmt.Println("Swagger JSON available at http://localhost:8080/openapi.json")
 	_ = router.Run(":8080")
 }
 
-var _ = swagger.Swagger().Path("/users/{id}").
-	Get(func(op openapi.Operation) {
+// Note: Path in doc.Path() should NOT include the base path from servers configuration.
+// The server URL will be prepended by UI tools.
+var _ = swagger.Swagger().Path("/users/{id}"). // Path relative to server URL
+						Get(func(op openapi.Operation) {
 		op.Summary("Find user by ID").
-			Tag("UserController").
-			Consumes(mime.ApplicationJSON).
-			Produce(mime.ApplicationJSON).
+			Tag("UserController"). // Tags are for grouping, can be any string
+			OperationID("getUserById").
 			PathParameter("id", func(p openapi.Parameter) {
-				p.
+				p.Description("ID of the user to retrieve").
 					Required(true).
-					Type("integer").
-					CollectionFormat("int64")
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64")
+					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
 				r.Description("successful operation").
-					SchemaFromDTO(UserDto{})
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&UserDto{}) // Reference the DTO
+					})
 			})
 	}).
 	Doc()
 
 func GetUserById(c *gin.Context) {
 	id := c.Param("id")
-	c.JSON(200, gin.H{
-		"id":   id,
-		"name": "John Doe",
+	c.JSON(http.StatusOK, UserDto{
+		ID:   1, // Example ID, could parse from 'id' param
+		Name: "John Doe for ID " + id,
 	})
 }
 
-func SwaggerConfig(router *gin.Engine) {
+func ConfigureSwagger(router *gin.Engine) {
 	router.Use(middleware.SwaggerGin(middleware.SwaggerConfig{
 		Enabled:  true,
 		JSONPath: "/openapi.json",
 		UIPath:   "/",
+		Title:    "Simple API OAS3",
 	}))
 
 	doc := swagger.Swagger()
 
 	doc.Info(func(info openapi.Info) {
-		info.Title("Simple Api").
+		info.Title("Simple API with OAS3").
 			Version("1.0").
-			Description("This is a simple API example using SwaggerGin.")
+			Description("This is a simple API example using Swagger and OpenAPI 3.0.")
 	}).
-		Server("/", func(server openapi.Server) {
-			server.Description("Servidor de desarrollo local")
-		}).
-		BasePath("/v1").
-		Schemes("http", "https")
+		Server("http://localhost:8080/v1", func(server openapi.Server) { // Server URL now includes base path
+			server.Description("Local development server V1")
+		})
+	// No BasePath() or Schemes() in OAS3 at the root level, handled by Servers array.
 }

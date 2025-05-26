@@ -7,19 +7,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ruiborda/go-swagger-generator/src/openapi"
-	"github.com/ruiborda/go-swagger-generator/src/openapi_spec"
 	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
 	"github.com/ruiborda/go-swagger-generator/src/swagger"
 )
 
 // Store DTOs
 type Order struct {
-	ID       int64     `json:"id,omitempty"`
-	PetID    int64     `json:"petId,omitempty"`
-	Quantity int32     `json:"quantity,omitempty"`
-	ShipDate time.Time `json:"shipDate,omitempty"`
-	Status   string    `json:"status,omitempty"` // can be "placed", "approved", "delivered"
-	Complete bool      `json:"complete,omitempty"`
+	ID       int64     `json:"id,omitempty" yaml:"id,omitempty"`
+	PetID    int64     `json:"petId,omitempty" yaml:"petId,omitempty"`
+	Quantity int32     `json:"quantity,omitempty" yaml:"quantity,omitempty"`
+	ShipDate time.Time `json:"shipDate,omitempty" yaml:"shipDate,omitempty"`
+	Status   string    `json:"status,omitempty" yaml:"status,omitempty"` // can be "placed", "approved", "delivered"
+	Complete bool      `json:"complete,omitempty" yaml:"complete,omitempty"`
 }
 
 // StoreTag defines the Swagger API tag for Store
@@ -35,18 +34,17 @@ var _ = swagger.Swagger().Path("/store/inventory").
 			Description("Returns a map of status codes to quantities").
 			OperationID("getInventory").
 			Tag("store").
-			Produces(mime.ApplicationJSON).
 			Response(http.StatusOK, func(r openapi.Response) {
 				r.Description("successful operation").
-					Schema(openapi_spec.SchemaEntity{
-						Type: "object",
-						AdditionalProperties: &openapi_spec.SchemaEntity{
-							Type:   "integer",
-							Format: "int32",
-						},
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.Schema(func(s openapi.Schema) {
+							s.Type("object").
+								AdditionalProperties(true, func(addPropSchema openapi.Schema) {
+									addPropSchema.Type("integer").Format("int32")
+								})
+						})
 					})
-			}).
-			Security("api_key")
+			})
 	}).
 	Doc()
 
@@ -61,13 +59,23 @@ var _ = swagger.Swagger().Path("/store/order").
 		op.Summary("Place an order for a pet").
 			OperationID("placeOrder").
 			Tag("store").
-			Consumes(mime.ApplicationJSON).
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
-			BodyParameter(func(p openapi.Parameter) {
-				p.Description("order placed for purchasing the pet").Required(true).SchemaFromDTO(&Order{})
+			RequestBody(func(rb openapi.RequestBody) {
+				rb.Description("order placed for purchasing the pet").Required(true).
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Order{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) { // Added XML support as per original Produces
+						mt.SchemaFromDTO(&Order{})
+					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
-				r.Description("successful operation").SchemaFromDTO(&Order{})
+				r.Description("successful operation").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Order{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Order{})
+					})
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid Order")
@@ -92,17 +100,23 @@ func PlaceOrder(c *gin.Context) {
 var _ = swagger.Swagger().Path("/store/order/{orderId}").
 	Get(func(op openapi.Operation) {
 		op.Summary("Find purchase order by ID").
-			Description("For valid response try integer IDs with value >= 1 and <= 10. Other values will generated exceptions").
+			Description("For valid response try integer IDs with value >= 1 and <= 10. Other values will generate exceptions").
 			OperationID("getOrderById").
 			Tag("store").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			PathParameter("orderId", func(p openapi.Parameter) {
-				p.Description("ID of pet that needs to be fetched").
-					Type("integer").Format("int64").
-					Minimum(1, false).Maximum(10, false)
+				p.Description("ID of order that needs to be fetched").Required(true).
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64").Minimum(1, false).Maximum(10, false)
+					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
-				r.Description("successful operation").SchemaFromDTO(&Order{})
+				r.Description("successful operation").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Order{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Order{})
+					})
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid ID supplied")
@@ -117,8 +131,7 @@ var _ = swagger.Swagger().Path("/store/order/{orderId}").
 func GetOrderByID(c *gin.Context) {
 	orderIDstr := c.Param("orderId")
 	orderID, _ := strconv.ParseInt(orderIDstr, 10, 64)
-	// Dummy response
-	order := Order{ID: orderID, PetID: 1, Quantity: 1, Status: "placed", Complete: false}
+	order := Order{ID: orderID, PetID: 1, Quantity: 1, Status: "placed", Complete: false, ShipDate: time.Now()}
 	c.JSON(http.StatusOK, order)
 }
 
@@ -129,10 +142,14 @@ var _ = swagger.Swagger().Path("/store/order/{orderId}").
 			Description("For valid response try integer IDs with positive integer value. Negative or non-integer values will generate API errors").
 			OperationID("deleteOrder").
 			Tag("store").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			PathParameter("orderId", func(p openapi.Parameter) {
-				p.Description("ID of the order that needs to be deleted").
-					Type("integer").Format("int64").Minimum(1, false)
+				p.Description("ID of the order that needs to be deleted").Required(true).
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64").Minimum(1, false)
+					})
+			}).
+			Response(http.StatusOK, func(r openapi.Response) { // Added success response
+				r.Description("Order deleted successfully")
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid ID supplied")

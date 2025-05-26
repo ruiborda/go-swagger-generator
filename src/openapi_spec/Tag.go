@@ -1,7 +1,7 @@
 package openapi_spec
 
-type TagEntity struct {
-	Name         string                       `json:"name"`
-	Description  string                       `json:"description,omitempty"`
-	ExternalDocs *ExternalDocumentationEntity `json:"externalDocs,omitempty"`
+type Tag struct {
+	Name         string                 `json:"name" yaml:"name"` // REQUIRED
+	Description  string                 `json:"description,omitempty" yaml:"description,omitempty"`
+	ExternalDocs *ExternalDocumentation `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type TagBuilder struct {
-	tag *entity2.TagEntity
+	tag *entity2.Tag
 }
 
 func (b *TagBuilder) Description(description string) openapi.Tag {
@@ -14,6 +14,6 @@ func (b *TagBuilder) Description(description string) openapi.Tag {
 	return b
 }
 func (b *TagBuilder) ExternalDocumentation(url string, description string) openapi.Tag {
-	b.tag.ExternalDocs = &entity2.ExternalDocumentationEntity{URL: url, Description: description}
+	b.tag.ExternalDocs = &entity2.ExternalDocumentation{URL: url, Description: description}
 	return b
 }

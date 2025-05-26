@@ -4,38 +4,36 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-
 	"github.com/gin-gonic/gin"
 	"github.com/ruiborda/go-swagger-generator/src/openapi"
-	"github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
 	"github.com/ruiborda/go-swagger-generator/src/swagger"
 )
 
 // Pet DTOs
 type Pet struct {
-	ID        int64     `json:"id,omitempty"`
-	Category  *Category `json:"category,omitempty"`
-	Name      string    `json:"name"`
-	PhotoUrls []string  `json:"photoUrls"`
-	Tags      []Tag     `json:"tags,omitempty"`
-	Status    string    `json:"status,omitempty"` // can be "available", "pending", "sold"
+	ID        int64     `json:"id,omitempty" yaml:"id,omitempty"`
+	Category  *Category `json:"category,omitempty" yaml:"category,omitempty"`
+	Name      string    `json:"name" yaml:"name"`
+	PhotoUrls []string  `json:"photoUrls" yaml:"photoUrls"`
+	Tags      []*Tag    `json:"tags,omitempty" yaml:"tags,omitempty"`     // Changed to pointer array for consistency
+	Status    string    `json:"status,omitempty" yaml:"status,omitempty"` // can be "available", "pending", "sold"
 }
 
 type Category struct {
-	ID   int64  `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	ID   int64  `json:"id,omitempty" yaml:"id,omitempty"`
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
 }
 
 type Tag struct {
-	ID   int64  `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	ID   int64  `json:"id,omitempty" yaml:"id,omitempty"`
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
 }
 
 type ApiResponse struct {
-	Code    int32  `json:"code"`
-	Type    string `json:"type"`
-	Message string `json:"message"`
+	Code    int32  `json:"code,omitempty" yaml:"code,omitempty"`
+	Type    string `json:"type,omitempty" yaml:"type,omitempty"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
 // PetTag defines the Swagger API tag for Pet
@@ -46,34 +44,45 @@ var _ = swagger.Swagger().
 	})
 
 // UploadImage swagger documentation
-var _ = swagger.Swagger().Path("/pet/{petId}/uploadImage").
-	Post(func(operation openapi.Operation) {
-		operation.Summary("uploads an image").
+var _ = swagger.Swagger().Path("/pet/{petId}/uploadImage"). // Path should not include the base path /v2
+								Post(func(op openapi.Operation) {
+		op.Summary("uploads an image").
 			OperationID("uploadFile").
 			Tag("pet").
-			Consumes("multipart/form-data").
-			Produce(mime.ApplicationJSON).
 			PathParameter("petId", func(p openapi.Parameter) {
 				p.Description("ID of pet to update").
-					MaxLength(64).
-					Type("integer").Format("int64")
+					Required(true). // Path parameters are always required
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64")
+					})
 			}).
-			FormParameter("additionalMetadata", func(p openapi.Parameter) {
-				p.Description("Additional data to pass to server").Required(false).Type("string")
-			}).
-			FormParameter("file", func(p openapi.Parameter) {
-				p.Description("file to upload").Required(false).Type("file")
+			RequestBody(func(rb openapi.RequestBody) {
+				rb.Description("Image and metadata to upload").
+					Required(true).
+					Content(mime.ApplicationOctetStream, func(mt openapi.MediaType) {
+						mt.Schema(func(s openapi.Schema) {
+							s.Type("object").
+								Property("additionalMetadata", func(prop openapi.Schema) {
+									prop.Type("string").Description("Additional data to pass to server")
+								}).
+								Property("file", func(prop openapi.Schema) {
+									prop.Type("string").Format("binary").Description("file to upload")
+								})
+						})
+					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
-				r.Description("successful operation").SchemaFromDTO(&ApiResponse{})
-			}).
-			Security("petstore_auth", "read:pets", "write:pets")
+				r.Description("successful operation").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&ApiResponse{})
+					})
+			})
 	}).
 	Doc()
 
 // UploadImage handler
 func UploadImage(c *gin.Context) {
-	c.JSON(http.StatusOK, ApiResponse{Code: 200, Type: "success", Message: "Image uploaded"})
+	c.JSON(http.StatusOK, ApiResponse{Code: http.StatusOK, Type: "success", Message: "Image uploaded"})
 }
 
 // FindByTags swagger documentation
@@ -83,26 +92,32 @@ var _ = swagger.Swagger().Path("/pet/findByTags").
 			Description("Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.").
 			OperationID("findPetsByTags").
 			Tag("pet").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			QueryParameter("tags", func(p openapi.Parameter) {
 				p.Description("Tags to filter by").
 					Required(true).
-					Type("array").
-					CollectionFormat("multi").
-					Items(func(item openapi.Schema) { item.Type("string") })
+					Schema(func(s openapi.Schema) {
+						s.Type("array").
+							Items(func(item openapi.Schema) { item.Type("string") })
+					}).
+					Style("form").Explode(false) // For comma separated values for array (default for query)
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
 				r.Description("successful operation").
-					Schema(openapi_spec.SchemaEntity{
-						Type:  "array",
-						Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/Pet"},
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.Schema(func(s openapi.Schema) {
+							s.Type("array").ItemsRef("#/components/schemas/Pet")
+						})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.Schema(func(s openapi.Schema) {
+							s.Type("array").ItemsRef("#/components/schemas/Pet")
+						})
 					})
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid tag value")
 			}).
-			Deprecated(true).
-			Security("petstore_auth", "read:pets", "write:pets")
+			Deprecated(true)
 	}).
 	Doc()
 
@@ -113,30 +128,40 @@ func FindByTags(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag value"})
 		return
 	}
-	// Dummy response
 	pets := []Pet{
-		{ID: 1, Name: "doggie", Tags: []Tag{{ID: 1, Name: "tag1"}}, PhotoUrls: []string{"http://example.com/photo1.jpg"}, Status: "available"},
+		{ID: 1, Name: "doggie", Tags: []*Tag{{ID: 1, Name: "tag1"}}, PhotoUrls: []string{"http://example.com/photo1.jpg"}, Status: "available"},
 	}
 	c.JSON(http.StatusOK, pets)
 }
 
 // AddPet swagger documentation
 var _ = swagger.Swagger().Path("/pet").
-	Post(func(operation openapi.Operation) {
-		operation.Summary("Add a new pet to the store").
+	Post(func(op openapi.Operation) {
+		op.Summary("Add a new pet to the store").
 			OperationID("addPet").
 			Tag("pet").
-			Consumes(mime.ApplicationJSON, mime.ApplicationXML).
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
-			BodyParameter(func(p openapi.Parameter) {
-				p.Description("Pet object that needs to be added to the store").
+			RequestBody(func(rb openapi.RequestBody) {
+				rb.Description("Pet object that needs to be added to the store").
 					Required(true).
-					SchemaFromDTO(&Pet{})
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					})
 			}).
-			Response(http.StatusMethodNotAllowed, func(r openapi.Response) {
-				r.Description("Invalid input")
+			Response(http.StatusMethodNotAllowed, func(r openapi.Response) { // Should be 200 or 201 for success
+				r.Description("Invalid input") // This response seems misplaced for a successful creation
 			}).
-			Security("petstore_auth", "read:pets", "write:pets")
+			Response(http.StatusOK, func(r openapi.Response) { // Added a success response
+				r.Description("Successful operation").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					})
+			})
 	}).
 	Doc()
 
@@ -156,12 +181,24 @@ var _ = swagger.Swagger().Path("/pet").
 		op.Summary("Update an existing pet").
 			OperationID("updatePet").
 			Tag("pet").
-			Consumes(mime.ApplicationJSON, mime.ApplicationXML).
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
-			BodyParameter(func(p openapi.Parameter) {
-				p.Description("Pet object that needs to be added to the store").
+			RequestBody(func(rb openapi.RequestBody) {
+				rb.Description("Pet object that needs to be updated in the store").
 					Required(true).
-					SchemaFromDTO(&Pet{})
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					})
+			}).
+			Response(http.StatusOK, func(r openapi.Response) { // Added success response
+				r.Description("Successful operation").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					})
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid ID supplied")
@@ -171,8 +208,7 @@ var _ = swagger.Swagger().Path("/pet").
 			}).
 			Response(http.StatusMethodNotAllowed, func(r openapi.Response) {
 				r.Description("Validation exception")
-			}).
-			Security("petstore_auth", "read:pets", "write:pets")
+			})
 	}).
 	Doc()
 
@@ -193,29 +229,34 @@ var _ = swagger.Swagger().Path("/pet/findByStatus").
 			Description("Multiple status values can be provided with comma separated strings").
 			OperationID("findPetsByStatus").
 			Tag("pet").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			QueryParameter("status", func(p openapi.Parameter) {
 				p.Description("Status values that need to be considered for filter").
 					Required(true).
-					Type("array").
-					CollectionFormat("multi").
-					Items(func(item openapi.Schema) {
-						item.Type("string").
-							Enum("available", "pending", "sold").
-							Default("available")
-					})
+					Schema(func(s openapi.Schema) {
+						s.Type("array").
+							Items(func(item openapi.Schema) {
+								item.Type("string").
+									Enum("available", "pending", "sold").
+									Default("available")
+							})
+					}).Explode(false).Style("form")
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
 				r.Description("successful operation").
-					Schema(openapi_spec.SchemaEntity{
-						Type:  "array",
-						Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/Pet"},
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.Schema(func(s openapi.Schema) {
+							s.Type("array").ItemsRef("#/components/schemas/Pet")
+						})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.Schema(func(s openapi.Schema) {
+							s.Type("array").ItemsRef("#/components/schemas/Pet")
+						})
 					})
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid status value")
-			}).
-			Security("petstore_auth", "read:pets", "write:pets")
+			})
 	}).
 	Doc()
 
@@ -226,7 +267,6 @@ func FindByStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status value"})
 		return
 	}
-	// Dummy response
 	pets := []Pet{
 		{ID: 1, Name: "doggie", PhotoUrls: []string{"http://example.com/photo1.jpg"}, Status: "available"},
 	}
@@ -240,21 +280,27 @@ var _ = swagger.Swagger().Path("/pet/{petId}").
 			Description("Returns a single pet").
 			OperationID("getPetById").
 			Tag("pet").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			PathParameter("petId", func(p openapi.Parameter) {
-				p.Description("ID of pet to return").Type("integer").Format("int64")
+				p.Description("ID of pet to return").Required(true).
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64")
+					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
-				r.Description("successful operation").SchemaFromDTO(&Pet{})
+				r.Description("successful operation").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					}).
+					Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&Pet{})
+					})
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid ID supplied")
 			}).
 			Response(http.StatusNotFound, func(r openapi.Response) {
 				r.Description("Pet not found")
-			}).
-			Security("api_key").
-			Security("petstore_auth", "read:pets", "write:pets")
+			})
 	}).
 	Doc()
 
@@ -262,7 +308,6 @@ var _ = swagger.Swagger().Path("/pet/{petId}").
 func GetPetByID(c *gin.Context) {
 	petIDstr := c.Param("petId")
 	petID, _ := strconv.ParseInt(petIDstr, 10, 64)
-	// Dummy response
 	pet := Pet{ID: petID, Name: "doggie", PhotoUrls: []string{"http://example.com/photo1.jpg"}, Status: "available"}
 	c.JSON(http.StatusOK, pet)
 }
@@ -273,21 +318,29 @@ var _ = swagger.Swagger().Path("/pet/{petId}").
 		op.Summary("Updates a pet in the store with form data").
 			OperationID("updatePetWithForm").
 			Tag("pet").
-			Consumes("application/x-www-form-urlencoded").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			PathParameter("petId", func(p openapi.Parameter) {
-				p.Description("ID of pet that needs to be updated").Type("integer").Format("int64")
+				p.Description("ID of pet that needs to be updated").Required(true).
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64")
+					})
 			}).
-			FormParameter("name", func(p openapi.Parameter) {
-				p.Description("Updated name of the pet").Required(false).Type("string")
-			}).
-			FormParameter("status", func(p openapi.Parameter) {
-				p.Description("Updated status of the pet").Required(false).Type("string")
+			RequestBody(func(rb openapi.RequestBody) {
+				rb.Content(mime.ApplicationOctetStream, func(mt openapi.MediaType) {
+					mt.Schema(func(s openapi.Schema) {
+						s.Type("object").
+							Property("name", func(prop openapi.Schema) {
+								prop.Type("string").Description("Updated name of the pet")
+							}).
+							Property("status", func(prop openapi.Schema) {
+								prop.Type("string").Description("Updated status of the pet")
+							})
+						// For form parameters, 'required' is on the property level within the schema
+					})
+				})
 			}).
 			Response(http.StatusMethodNotAllowed, func(r openapi.Response) {
 				r.Description("Invalid input")
-			}).
-			Security("petstore_auth", "read:pets", "write:pets")
+			})
 	}).
 	Doc()
 
@@ -302,20 +355,27 @@ var _ = swagger.Swagger().Path("/pet/{petId}").
 		op.Summary("Deletes a pet").
 			OperationID("deletePet").
 			Tag("pet").
-			Produces(mime.ApplicationJSON, mime.ApplicationXML).
 			HeaderParameter("api_key", func(p openapi.Parameter) {
-				p.Description("").Required(false).Type("string")
+				p.Description("Session token for authentication").Required(false).
+					Schema(func(s openapi.Schema) {
+						s.Type("string")
+					})
 			}).
 			PathParameter("petId", func(p openapi.Parameter) {
-				p.Description("Pet id to delete").Type("integer").Format("int64")
+				p.Description("Pet id to delete").Required(true).
+					Schema(func(s openapi.Schema) {
+						s.Type("integer").Format("int64")
+					})
+			}).
+			Response(http.StatusOK, func(r openapi.Response) { // Added success response
+				r.Description("Pet deleted successfully")
 			}).
 			Response(http.StatusBadRequest, func(r openapi.Response) {
 				r.Description("Invalid ID supplied")
 			}).
 			Response(http.StatusNotFound, func(r openapi.Response) {
 				r.Description("Pet not found")
-			}).
-			Security("petstore_auth", "read:pets", "write:pets")
+			})
 	}).
 	Doc()
 

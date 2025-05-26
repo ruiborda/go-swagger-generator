@@ -6,7 +6,7 @@ import (
 )
 
 type ContactBuilder struct {
-	contact *openapi_spec.ContactEntity
+	contact *openapi_spec.Contact
 }
 
 func (b *ContactBuilder) Name(name string) openapi.Contact {

@@ -6,7 +6,7 @@ import (
 )
 
 type InfoBuilder struct {
-	info *entity2.InfoEntity
+	info *entity2.Info
 }
 
 func (b *InfoBuilder) Title(title string) openapi2.Info {
@@ -27,7 +27,7 @@ func (b *InfoBuilder) TermsOfService(terms string) openapi2.Info {
 }
 func (b *InfoBuilder) Contact(config func(builder openapi2.Contact)) openapi2.Info {
 	if b.info.Contact == nil {
-		b.info.Contact = &entity2.ContactEntity{}
+		b.info.Contact = &entity2.Contact{}
 	}
 	contactBuilder := &ContactBuilder{contact: b.info.Contact}
 	config(contactBuilder)
@@ -35,7 +35,7 @@ func (b *InfoBuilder) Contact(config func(builder openapi2.Contact)) openapi2.In
 }
 func (b *InfoBuilder) License(config func(builder openapi2.License)) openapi2.Info {
 	if b.info.License == nil {
-		b.info.License = &entity2.LicenseEntity{}
+		b.info.License = &entity2.License{}
 	}
 	licenseBuilder := &LicenseBuilder{license: b.info.License}
 	config(licenseBuilder)

@@ -6,7 +6,7 @@ import (
 )
 
 type LicenseBuilder struct {
-	license *openapi_spec.LicenseEntity
+	license *openapi_spec.License
 }
 
 func (b *LicenseBuilder) Name(name string) openapi.License {

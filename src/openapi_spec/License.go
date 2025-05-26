@@ -1,6 +1,6 @@
 package openapi_spec
 
-type LicenseEntity struct {
-	Name string `json:"name,omitempty"`
-	URL  string `json:"url,omitempty"`
+type License struct {
+	Name string `json:"name" yaml:"name"` // Name is required in OAS3
+	URL  string `json:"url,omitempty" yaml:"url,omitempty"`
 }

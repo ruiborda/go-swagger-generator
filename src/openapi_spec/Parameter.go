@@ -1,27 +1,23 @@
 package openapi_spec
 
-type ParameterEntity struct {
-	Name             string        `json:"name"`
-	In               string        `json:"in"`
-	Description      string        `json:"description,omitempty"`
-	Required         bool          `json:"required,omitempty"`
-	Schema           *SchemaEntity `json:"schema,omitempty"`
-	Type             string        `json:"type,omitempty"`
-	Format           string        `json:"format,omitempty"`
-	AllowEmptyValue  bool          `json:"allowEmptyValue,omitempty"`
-	Items            *SchemaEntity `json:"items,omitempty"`
-	CollectionFormat string        `json:"collectionFormat,omitempty"`
-	Default          interface{}   `json:"default,omitempty"`
-	Maximum          *float64      `json:"maximum,omitempty"`
-	ExclusiveMaximum bool          `json:"exclusiveMaximum,omitempty"`
-	Minimum          *float64      `json:"minimum,omitempty"`
-	ExclusiveMinimum bool          `json:"exclusiveMinimum,omitempty"`
-	MaxLength        *int          `json:"maxLength,omitempty"`
-	MinLength        *int          `json:"minLength,omitempty"`
-	Pattern          string        `json:"pattern,omitempty"`
-	MaxItems         *int          `json:"maxItems,omitempty"`
-	MinItems         *int          `json:"minItems,omitempty"`
-	UniqueItems      bool          `json:"uniqueItems,omitempty"`
-	Enum             []interface{} `json:"enum,omitempty"`
-	MultipleOf       *float64      `json:"multipleOf,omitempty"`
+// Parameter defines a parameter in OAS3.
+// Type, Format, Items, etc., are now part of the Schema object.
+// CollectionFormat is replaced by 'style' and 'explode'.
+type Parameter struct {
+	Name            string      `json:"name" yaml:"name"`
+	In              string      `json:"in" yaml:"in"` // "query", "header", "path", "cookie"
+	Description     string      `json:"description,omitempty" yaml:"description,omitempty"`
+	Required        bool        `json:"required,omitempty" yaml:"required,omitempty"` // Note: Must be true if 'in' is "path".
+	Deprecated      bool        `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
+	AllowEmptyValue bool        `json:"allowEmptyValue,omitempty" yaml:"allowEmptyValue,omitempty"`
+
+	Style   string `json:"style,omitempty" yaml:"style,omitempty"`     // How the parameter is serialized.
+	Explode bool   `json:"explode,omitempty" yaml:"explode,omitempty"` // Used with 'style'.
+
+	Schema   *Schema                `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Example  interface{}            `json:"example,omitempty" yaml:"example,omitempty"`
+	Examples map[string]*ExampleRef `json:"examples,omitempty" yaml:"examples,omitempty"`
+
+	// Content is an alternative to schema for more complex serialization scenarios.
+	// Content map[string]*MediaType `json:"content,omitempty" yaml:"content,omitempty"`
 }

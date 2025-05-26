@@ -1,81 +1,82 @@
 package swagger
 
 import (
-	openapi2 "github.com/ruiborda/go-swagger-generator/src/openapi"
-	entity2 "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	openapi "github.com/ruiborda/go-swagger-generator/src/openapi"
+	entity "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
 )
 
 type HeaderBuilder struct {
-	header *entity2.HeaderEntity
-	// docBuilder *SwaggerDocBuilder // Uncomment if needed for SchemaFromDTO in Items
+	header     *entity.Header
+	docBuilder *SwaggerDocBuilder
 }
 
-func (b *HeaderBuilder) Description(description string) openapi2.Header {
+func (b *HeaderBuilder) Description(description string) openapi.Header {
 	b.header.Description = description
 	return b
 }
-func (b *HeaderBuilder) Type(headerType string) openapi2.Header {
-	b.header.Type = headerType
+
+func (b *HeaderBuilder) Required(required bool) openapi.Header {
+	b.header.Required = required
 	return b
 }
-func (b *HeaderBuilder) Format(format string) openapi2.Header {
-	b.header.Format = format
+
+func (b *HeaderBuilder) Deprecated(deprecated bool) openapi.Header {
+	b.header.Deprecated = deprecated
 	return b
 }
-func (b *HeaderBuilder) Items(config func(openapi2.Schema)) openapi2.Header {
-	itemsSchema := &entity2.SchemaEntity{}
-	schemaBuilder := &SchemaBuilder{schema: itemsSchema /* docBuilder: b.docBuilder */}
+
+func (b *HeaderBuilder) AllowEmptyValue(allow bool) openapi.Header {
+	b.header.AllowEmptyValue = allow
+	return b
+}
+
+func (b *HeaderBuilder) initSchema() {
+	if b.header.Schema == nil {
+		b.header.Schema = &entity.Schema{}
+	}
+}
+
+func (b *HeaderBuilder) Schema(config func(openapi.Schema)) openapi.Header {
+	b.initSchema()
+	schemaBuilder := &SchemaBuilder{schema: b.header.Schema, docBuilder: b.docBuilder}
 	config(schemaBuilder)
-	b.header.Items = itemsSchema
 	return b
 }
-func (b *HeaderBuilder) CollectionFormat(format string) openapi2.Header {
-	b.header.CollectionFormat = format
+
+func (b *HeaderBuilder) SchemaFromDTO(dto interface{}) openapi.Header {
+	dtoName, err := b.docBuilder.SchemaFromDTO(dto)
+	if err != nil {
+		// log error
+		return b
+	}
+	b.initSchema()
+	b.header.Schema.Ref = "#/components/schemas/" + dtoName
 	return b
 }
-func (b *HeaderBuilder) Default(value interface{}) openapi2.Header {
-	b.header.Default = value
+
+func (b *HeaderBuilder) SchemaRef(ref string) openapi.Header {
+	b.initSchema()
+	b.header.Schema.Ref = ref
 	return b
 }
-func (b *HeaderBuilder) Maximum(max float64, exclusive bool) openapi2.Header {
-	b.header.Maximum = &max
-	b.header.ExclusiveMaximum = exclusive
+
+func (b *HeaderBuilder) Example(value interface{}) openapi.Header {
+	b.header.Example = value
 	return b
 }
-func (b *HeaderBuilder) Minimum(min float64, exclusive bool) openapi2.Header {
-	b.header.Minimum = &min
-	b.header.ExclusiveMinimum = exclusive
+
+func (b *HeaderBuilder) Examples(name string, config func(openapi.Example)) openapi.Header {
+	if b.header.Examples == nil {
+		b.header.Examples = make(map[string]*entity.ExampleRef)
+	}
+	ex := entity.Example{}
+	exBuilder := &ExampleBuilder{example: &ex}
+	config(exBuilder)
+	b.header.Examples[name] = &entity.ExampleRef{Example: &ex}
 	return b
 }
-func (b *HeaderBuilder) MaxLength(max int) openapi2.Header {
-	b.header.MaxLength = &max
-	return b
-}
-func (b *HeaderBuilder) MinLength(min int) openapi2.Header {
-	b.header.MinLength = &min
-	return b
-}
-func (b *HeaderBuilder) Pattern(pattern string) openapi2.Header {
-	b.header.Pattern = pattern
-	return b
-}
-func (b *HeaderBuilder) MaxItems(max int) openapi2.Header {
-	b.header.MaxItems = &max
-	return b
-}
-func (b *HeaderBuilder) MinItems(min int) openapi2.Header {
-	b.header.MinItems = &min
-	return b
-}
-func (b *HeaderBuilder) UniqueItems(unique bool) openapi2.Header {
-	b.header.UniqueItems = unique
-	return b
-}
-func (b *HeaderBuilder) Enum(values ...interface{}) openapi2.Header {
-	b.header.Enum = values
-	return b
-}
-func (b *HeaderBuilder) MultipleOf(val float64) openapi2.Header {
-	b.header.MultipleOf = &val
+
+func (b *HeaderBuilder) Ref(ref string) openapi.Header {
+	// Handled by higher level component (e.g. ResponseBuilder Header method with ref)
 	return b
 }

@@ -83,4 +83,6 @@ const (
 	Video3GPP2                     MimeType = "video/3gpp2"
 	Audio3GPP2                     MimeType = "audio/3gpp2"
 	Application7Zip                MimeType = "application/x-7z-compressed"
+
+	ApplicationFormURLEncoded MimeType = "application/x-www-form-urlencoded"
 )
