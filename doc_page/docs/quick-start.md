@@ -31,10 +31,10 @@ import (
     "net/http"
 
     "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/middleware" // Assuming 'src' is part of the import path
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/middleware" // Assuming 'src' is part of the import path
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 // UserDto represents the data transfer object for a user.
