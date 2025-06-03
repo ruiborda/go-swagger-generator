@@ -13,7 +13,7 @@ Install Go Swagger Generator v2 and the Gin framework:
 
 ```bash
 # Install Go Swagger Generator v2
-go get -u github.com/ruiborda/go-swagger-generator@v2
+go get -u github.com/ruiborda/go-swagger-generator/v2
 
 # Install Gin Framework
 go get github.com/gin-gonic/gin
@@ -158,3 +158,4 @@ For more information, see:
 - [Defining Models (Schemas)](/docs/defining-models)
 - [Security Schemes](/docs/security)
 - [Production Configuration](/docs/production)
+
