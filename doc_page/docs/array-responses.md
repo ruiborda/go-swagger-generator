@@ -16,9 +16,9 @@ package main
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
     "net/http"
 )
 
@@ -94,9 +94,9 @@ package main
 
 import (
     // ... other imports
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
     "net/http"
 )
 
