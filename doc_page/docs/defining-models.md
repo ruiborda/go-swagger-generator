@@ -16,8 +16,8 @@ package main
 
 import (
     // "github.com/gin-gonic/gin" // if building a full app
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 // Product defines a product in the catalog
@@ -52,8 +52,8 @@ This example demonstrates how to define models with nested object relationships.
 package main
 
 import (
-    "github.com/ruiborda/go-swagger-generator/src/openapi" // Assuming this path for openapi types
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi" // Assuming this path for openapi types
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
     "time"
 )
 
@@ -111,8 +111,8 @@ For explicit `allOf` (manual definition):
 package main
 
 import (
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 // Base model for all API responses
@@ -159,8 +159,8 @@ Here's how to define models with enum values, typically done by manually definin
 package main
 
 import (
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 // Pet model with enum for status
@@ -217,10 +217,10 @@ import (
     "net/http"
     
     "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/middleware"
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/middleware"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 // User model
@@ -318,8 +318,8 @@ Define models with validation rules using OpenAPI 3.0 keywords within the schema
 package main
 
 import (
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 func main() {
@@ -384,8 +384,8 @@ Here's how to define a model that allows additional properties (like a map or di
 package main
 
 import (
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
+    "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 func main() {
