@@ -1,15 +1,15 @@
 ---
 sidebar_position: 7
-title: POST Endpoints
+title: POST Endpoints (v2)
 ---
 
-# Documenting POST Endpoints
+# Documenting POST Endpoints (v2)
 
-This guide shows how to document POST endpoints with go-swagger-generator using practical examples.
+This guide shows how to document POST endpoints with Go-Swagger-Generator v2 for OpenAPI 3.0. POST requests are typically used to create new resources or trigger actions.
 
-## Basic POST Endpoint
+## Basic POST Endpoint (Resource Creation)
 
-Here's a simple example of documenting a POST endpoint that creates a resource:
+Here's an example of documenting a POST endpoint that creates a new resource using a JSON request body.
 
 ```go
 package main
@@ -24,53 +24,64 @@ import (
 
 // User DTO
 type User struct {
-    ID       int64  `json:"id,omitempty"`
-    Username string `json:"username,omitempty"`
-    FirstName string `json:"firstName,omitempty"`
-    LastName  string `json:"lastName,omitempty"`
-    Email    string `json:"email,omitempty"`
-    Password string `json:"password,omitempty"`
-    Phone    string `json:"phone,omitempty"`
+    ID        int64  `json:"id,omitempty" yaml:"id,omitempty"`
+    Username  string `json:"username" yaml:"username"`
+    FirstName string `json:"firstName,omitempty" yaml:"firstName,omitempty"`
+    LastName  string `json:"lastName,omitempty" yaml:"lastName,omitempty"`
+    Email     string `json:"email" yaml:"email"`
+    Password  string `json:"password,omitempty" yaml:"password,omitempty"` // Typically not returned
+    Phone     string `json:"phone,omitempty" yaml:"phone,omitempty"`
 }
 
-// Swagger documentation for POST /user
-var _ = swagger.Swagger().Path("/user").
+// Ensure User DTO is registered: _, _ = swagger.Swagger().ComponentSchemaFromDTO(&User{})
+
+// Swagger documentation for POST /users
+var _ = swagger.Swagger().Path("/users"). // Path relative to server URL
     Post(func(op openapi.Operation) {
-        op.Summary("Create user").
-            Description("This can only be done by the logged in user.").
-            OperationID("createUser").
-            Tag("user").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Created user object").Required(true).SchemaFromDTO(&User{})
+        op.Summary("Create a new user").
+            Description("Creates a new user account.").
+            OperationID("createUserV2").
+            Tag("User Operations").
+            RequestBody(func(rb openapi.RequestBody) { // Define the request body
+                rb.Description("User object to be created").
+                  Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&User{}) // Use User DTO for request body schema
+                  })
+                // Optionally add other consumable types e.g. XML
+                // rb.Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+                //    mt.SchemaFromDTO(&User{})
+                // })
             }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation")
+            Response(http.StatusCreated, func(r openapi.Response) { // 201 Created is common for successful POST
+                r.Description("User created successfully").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&User{}) // Return the created user (omitting password)
+                  })
+            }).
+            Response(http.StatusBadRequest, func(r openapi.Response) {
+                r.Description("Invalid user data supplied")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func CreateUser(c *gin.Context) {
     var user User
     if err := c.ShouldBindJSON(&user); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{"message": "User created"})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/user", CreateUser)
+    user.ID = 123 // Simulate ID generation
+    // Save user to database...
+    user.Password = "" // Clear password before returning
+    c.JSON(http.StatusCreated, user)
 }
 ```
 
-## POST with Form Parameters
+## POST with Form Parameters (`application/x-www-form-urlencoded`)
 
-This example shows how to document a POST endpoint that accepts form data:
+This example shows how to document a POST endpoint that accepts URL-encoded form data.
 
 ```go
 package main
@@ -78,52 +89,61 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
+    // "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// Swagger documentation for POST /pet/{petId}
-var _ = swagger.Swagger().Path("/pet/{petId}").
+// Swagger documentation for POST /pets/{petId}
+var _ = swagger.Swagger().Path("/pets/{petId}"). // Path relative to server URL
     Post(func(op openapi.Operation) {
         op.Summary("Updates a pet in the store with form data").
-            OperationID("updatePetWithForm").
-            Tag("pet").
-            Consumes("application/x-www-form-urlencoded").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
+            OperationID("updatePetWithFormV2").
+            Tag("Pet Operations").
             PathParameter("petId", func(p openapi.Parameter) {
-                p.Description("ID of pet that needs to be updated").Type("integer").Format("int64")
+                p.Description("ID of pet that needs to be updated").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
             }).
-            FormParameter("name", func(p openapi.Parameter) {
-                p.Description("Updated name of the pet").Required(false).Type("string")
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Pet name and status to update").
+                  Required(true).
+                  Content("application/x-www-form-urlencoded", func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) {
+                          s.Type("object").
+                            Property("name", func(propSchema openapi.Schema) {
+                                propSchema.Type("string").Description("Updated name of the pet")
+                            }).
+                            Property("status", func(propSchema openapi.Schema) {
+                                propSchema.Type("string").Description("Updated status of the pet")
+                            })
+                          // Form parameters are typically not individually marked as 'required' here;
+                          // the requirement is on the properties within the schema if applicable, 
+                          // or the entire request body can be required.
+                      })
+                  })
             }).
-            FormParameter("status", func(p openapi.Parameter) {
-                p.Description("Updated status of the pet").Required(false).Type("string")
+            Response(http.StatusOK, func(r openapi.Response) {
+                r.Description("Pet updated successfully")
             }).
-            Response(http.StatusMethodNotAllowed, func(r openapi.Response) {
+            Response(http.StatusMethodNotAllowed, func(r openapi.Response) { // Or 400 Bad Request
                 r.Description("Invalid input")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func UpdatePetWithForm(c *gin.Context) {
-    petID := c.Param("petId")
-    name := c.PostForm("name")
-    status := c.PostForm("status")
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{"message": "Pet updated", "id": petID, "name": name, "status": status})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/pet/:petId", UpdatePetWithForm)
+    // petID := c.Param("petId")
+    // name := c.PostForm("name")
+    // status := c.PostForm("status")
+    // Implementation...
+    c.JSON(http.StatusOK, gin.H{"message": "Pet updated"})
 }
 ```
 
-## POST with File Upload
+## POST with File Upload (`multipart/form-data`)
 
-Here's how to document a POST endpoint that handles file uploads:
+Here's how to document a POST endpoint that handles file uploads along with other form data.
 
 ```go
 package main
@@ -136,63 +156,63 @@ import (
     "net/http"
 )
 
-// API Response DTO
+// ApiResponse DTO for file upload response
 type ApiResponse struct {
-    Code    int32  `json:"code"`
-    Type    string `json:"type"`
-    Message string `json:"message"`
+    Code    int32  `json:"code,omitempty" yaml:"code,omitempty"`
+    Type    string `json:"type,omitempty" yaml:"type,omitempty"`
+    Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&ApiResponse{})
 
-// Swagger documentation for POST /pet/{petId}/uploadImage
-var _ = swagger.Swagger().Path("/pet/{petId}/uploadImage").
-    Post(func(operation openapi.Operation) {
-        operation.Summary("uploads an image").
-            OperationID("uploadFile").
-            Tag("pet").
-            Consumes("multipart/form-data").
-            Produce(mime.ApplicationJSON).
+// Swagger documentation for POST /pets/{petId}/uploadImage
+var _ = swagger.Swagger().Path("/pets/{petId}/uploadImage").
+    Post(func(op openapi.Operation) {
+        op.Summary("Uploads an image for a pet").
+            OperationID("uploadPetImageV2").
+            Tag("Pet Operations").
             PathParameter("petId", func(p openapi.Parameter) {
-                p.Description("ID of pet to update").
-                    MaxLength(64).
-                    Type("integer").Format("int64")
+                p.Description("ID of pet to update").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
             }).
-            FormParameter("additionalMetadata", func(p openapi.Parameter) {
-                p.Description("Additional data to pass to server").Required(false).Type("string")
-            }).
-            FormParameter("file", func(p openapi.Parameter) {
-                p.Description("file to upload").Required(false).Type("file")
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Image file and additional metadata").
+                  Required(true).
+                  Content("multipart/form-data", func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) {
+                          s.Type("object").
+                            Property("additionalMetadata", func(propSchema openapi.Schema) {
+                                propSchema.Type("string").Description("Additional data to pass to server")
+                            }).
+                            Property("file", func(propSchema openapi.Schema) {
+                                propSchema.Type("string").Format("binary").Description("Image file to upload")
+                            })
+                          // To mark parts as required inside multipart form:
+                          // s.Required("file") 
+                      })
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").SchemaFromDTO(&ApiResponse{})
+                r.Description("Image uploaded successfully").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&ApiResponse{})
+                  })
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func UploadImage(c *gin.Context) {
-    petID := c.Param("petId")
-    metadata := c.PostForm("additionalMetadata")
-    
-    // Get uploaded file
-    file, _ := c.FormFile("file")
-    // Implementation details
-    
-    c.JSON(http.StatusOK, ApiResponse{
-        Code: 200,
-        Type: "success",
-        Message: "Image uploaded for pet " + petID + " with metadata: " + metadata,
-    })
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/pet/:petId/uploadImage", UploadImage)
+    // petID := c.Param("petId")
+    // metadata := c.PostForm("additionalMetadata")
+    // file, _ := c.FormFile("file")
+    // Implementation...
+    c.JSON(http.StatusOK, ApiResponse{Code: 200, Type: "success", Message: "Image uploaded"})
 }
 ```
 
 ## POST with Array Input
 
-This example demonstrates how to document a POST endpoint that accepts an array of objects:
+This example demonstrates documenting a POST endpoint that accepts an array of objects in the request body.
 
 ```go
 package main
@@ -200,60 +220,50 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// User DTO
-type User struct {
-    ID       int64  `json:"id,omitempty"`
-    Username string `json:"username,omitempty"`
-    Email    string `json:"email,omitempty"`
-}
+// User DTO (defined earlier)
+// type User struct { ... }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&User{})
 
-// Swagger documentation for POST /user/createWithArray
-var _ = swagger.Swagger().Path("/user/createWithArray").
+// Swagger documentation for POST /users/createWithArray
+var _ = swagger.Swagger().Path("/users/createWithArray").
     Post(func(op openapi.Operation) {
-        op.Summary("Creates list of users with given input array").
-            OperationID("createUsersWithArrayInput").
-            Tag("user").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("List of user object").Required(true).
-                    Schema(openapi_spec.SchemaEntity{
-                        Type:  "array",
-                        Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/User"},
-                    })
+        op.Summary("Creates a list of users from an array").
+            OperationID("createUsersWithArrayInputV2").
+            Tag("User Operations").
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Array of user objects to create").Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      // For an array request body, use SchemaFromDTO with a pointer to a slice of pointers
+                      mt.SchemaFromDTO(&[]*User{}) 
+                  })
             }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation")
+            Response(http.StatusOK, func(r openapi.Response) { // Or 201 Created
+                r.Description("Successfully created users (or partial success report)")
+                // Response could be a summary or array of created users
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func CreateUsersWithArray(c *gin.Context) {
-    var users []User
+    var users []*User
     if err := c.ShouldBindJSON(&users); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{"message": "Users created", "count": len(users)})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/user/createWithArray", CreateUsersWithArray)
+    // Implementation to create multiple users...
+    c.JSON(http.StatusOK, gin.H{"message": "Users processed", "count": len(users)})
 }
 ```
 
-## POST with Object Creation and Return
+## POST for Actions (No Specific Resource Creation)
 
-Here's how to document a POST endpoint that creates an object and returns it:
+A POST request can also be used to trigger an action that doesn't necessarily create a resource identifiable by the request URL.
 
 ```go
 package main
@@ -261,62 +271,54 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
+    // "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
-    "time"
 )
 
-// Order DTO
-type Order struct {
-    ID       int64     `json:"id,omitempty"`
-    PetID    int64     `json:"petId,omitempty"`
-    Quantity int32     `json:"quantity,omitempty"`
-    ShipDate time.Time `json:"shipDate,omitempty"`
-    Status   string    `json:"status,omitempty"` // placed, approved, delivered
-    Complete bool      `json:"complete,omitempty"`
+// ActionRequest DTO for the action
+type ActionRequest struct {
+    ActionName string                 `json:"actionName" yaml:"actionName"`
+    Parameters map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&ActionRequest{})
 
-// Swagger documentation for POST /store/order
-var _ = swagger.Swagger().Path("/store/order").
+// Swagger documentation for POST /system/actions
+var _ = swagger.Swagger().Path("/system/actions").
     Post(func(op openapi.Operation) {
-        op.Summary("Place an order for a pet").
-            OperationID("placeOrder").
-            Tag("store").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("order placed for purchasing the pet").Required(true).SchemaFromDTO(&Order{})
+        op.Summary("Trigger a system action").
+            OperationID("triggerSystemActionV2").
+            Tag("System Operations").
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Action to perform").Required(true).
+                  Content("application/json", func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&ActionRequest{})
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").SchemaFromDTO(&Order{})
+                r.Description("Action triggered successfully").
+                  Content("application/json", func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) { // Custom success response schema
+                          s.Type("object").
+                            Property("status", func(ps openapi.Schema){ ps.Type("string") }).
+                            Property("details", func(ps openapi.Schema){ ps.Type("string") })
+                      })
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid Order")
+                r.Description("Invalid action request")
             })
     }).
     Doc()
 
-// Handler function
-func PlaceOrder(c *gin.Context) {
-    var order Order
-    if err := c.ShouldBindJSON(&order); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Order"})
+// Handler function (example)
+func TriggerSystemAction(c *gin.Context) {
+    var req ActionRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action request"})
         return
     }
-    
-    // Implementation details
-    if order.ID == 0 {
-        order.ID = 123 // Generate ID
-    }
-    order.ShipDate = time.Now()
-    order.Status = "placed"
-    
-    c.JSON(http.StatusOK, order)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/store/order", PlaceOrder)
+    // Perform action based on req.ActionName and req.Parameters...
+    c.JSON(http.StatusOK, gin.H{"status": "success", "details": "Action '" + req.ActionName + "' processed."})
 }
 ```
