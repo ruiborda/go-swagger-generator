@@ -17,7 +17,7 @@ Go Swagger Generator v2 es una librería que facilita la generación de document
 
 ```bash
 # Instala Go Swagger Generator v2
- go get github.com/ruiborda/go-swagger-generator/v2
+ go get -u github.com/ruiborda/go-swagger-generator/v2
 ```
 
 Si usas Gin:
