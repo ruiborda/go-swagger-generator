@@ -1,186 +1,147 @@
 ---
 slug: integrating-openapi-v2-in-gin
-title: How to Integrate OpenAPI 3.0 in your Gin API with Go Swagger Generator v2
+title: Cómo integrar OpenAPI 3.0 en tu API Gin con Go Swagger Generator v2
 authors: [rui]
 tags: [go, openapi, oas3, gin, api, documentation, v2]
 ---
 
-# How to Integrate OpenAPI 3.0 in your Gin API with Go Swagger Generator v2
+# Cómo integrar OpenAPI 3.0 en tu API Gin con Go Swagger Generator v2
 
-In modern API development, clear and accessible documentation is as important as the code itself. A well-documented API facilitates its adoption, reduces friction during integration, and saves time for both internal and external developers.
+En el desarrollo moderno de APIs, una documentación clara y accesible es tan importante como el propio código. Una API bien documentada facilita su adopción, reduce la fricción durante la integración y ahorra tiempo tanto a desarrolladores internos como externos.
 
-In this tutorial, we will learn how to integrate OpenAPI 3.0 into a Gin application using **Go Swagger Generator v2**, a library that makes it easy to generate OpenAPI documentation directly from your Go code.
+En este tutorial aprenderás a integrar OpenAPI 3.0 en una aplicación Gin usando **Go Swagger Generator v2**, una librería que facilita la generación de documentación OpenAPI directamente desde tu código Go.
 
 <!-- truncate -->
 
-## Why use Go Swagger Generator v2?
+## ¿Por qué usar Go Swagger Generator v2?
 
-- **Fluid and elegant API** - Chained syntax that makes documentation easy to read and write for OpenAPI 3.0.
-- **Simple integration with Gin** - Works with the popular Gin web framework without complications.
-- **No annotations needed** - No special comments required in your code.
-- **Built-in Swagger UI** - Includes Swagger UI to interactively explore your API, rendering your OpenAPI 3.0 spec.
+- **API fluida y elegante** - Sintaxis encadenada que facilita la documentación OpenAPI 3.0.
+- **Integración simple con Gin** - Funciona con el framework Gin sin complicaciones.
+- **Sin anotaciones necesarias** - No requiere comentarios especiales en tu código.
+- **Swagger UI incorporado** - Incluye Swagger UI para explorar tu API de forma interactiva.
 
-## Step 1: Installing dependencies
+## Paso 1: Instalar dependencias
 
-The first thing we need to do is install both Gin and the Go Swagger Generator v2:
+Lo primero es instalar Gin y Go Swagger Generator v2:
 
 ```bash
-# Install Gin Framework
+# Instala Gin Framework
 go get github.com/gin-gonic/gin
 
-# Install Go Swagger Generator v2
-go get -u github.com/ruiborda/go-swagger-generator@v2
+# Instala Go Swagger Generator v2
+go get github.com/ruiborda/go-swagger-generator/v2
 ```
 
-## Step 2: Defining models (DTOs)
+## Paso 2: Definir modelos (DTOs)
 
-Let's start by defining a simple structure that will be part of our API. In this case, we'll define a `UserDto`:
+Define una estructura simple que será parte de tu API, por ejemplo `UserDto`:
 
 ```go
 type UserDto struct {
-	ID   int    `json:"id" yaml:"id"` // Added yaml tag for consistency with examples
+	ID   int    `json:"id" yaml:"id"`
 	Name string `json:"name" yaml:"name"`
 }
 ```
 
-This structure represents the user data that the API will return.
+Esta estructura representa los datos de usuario que la API devolverá.
 
-## Step 3: Configuring OpenAPI 3.0 Documentation
+## Paso 3: Configurar la documentación OpenAPI 3.0
 
-Now we need to configure OpenAPI 3.0 documentation in our Gin application. We'll create a dedicated function for this:
+Crea una función dedicada para configurar la documentación:
 
 ```go
 func ConfigureOpenAPI(router *gin.Engine) {
-	// Enable Swagger middleware for OpenAPI 3.0
+	// Habilita el middleware Swagger para OpenAPI 3.0
 	router.Use(middleware.SwaggerGin(middleware.SwaggerConfig{
 		Enabled:  true,
-		JSONPath: "/openapi.json", // Path for OpenAPI JSON
-		UIPath:   "/",             // Path for Swagger UI
-		Title:    "Simple API with OpenAPI 3.0", // Title for the Swagger UI page
+		JSONPath: "/openapi.json",
+		UIPath:   "/",
+		Title:    "Simple API with OpenAPI 3.0",
 	}))
 
-	// Get the OpenAPI document instance (default is OAS3)
 	doc := swagger.Swagger()
-
-	// Configure basic API information (Info Object)
 	doc.Info(func(info openapi.Info) {
 		info.Title("Simple API").
-			Version("1.0.0"). // Semantic versioning for your API
-			Description("This is a simple API example using Go Swagger Generator v2 and OpenAPI 3.0.")
+			Version("1.0.0").
+			Description("Este es un ejemplo de API usando Go Swagger Generator v2 y OpenAPI 3.0.")
 	})
-
-	// Configure Servers (OAS3 replaces BasePath and Schemes)
 	doc.Server("http://localhost:8080/v1", func(server openapi.Server) {
-		server.Description("Local development server - API version 1")
+		server.Description("Servidor local de desarrollo - API versión 1")
 	})
-	// You can add more servers (e.g., staging, production)
-	// doc.Server("https://api.example.com/v1", func(server openapi.Server) {
-	// 	server.Description("Production server - API version 1")
-	// })
+	// Puedes agregar más servidores si lo necesitas
+	// doc.Server("https://api.ejemplo.com/v1", ...)
 
-    // Register DTOs to be available in #/components/schemas/
-    // This is good practice, though SchemaFromDTO in operations also registers them.
-    _, _ = doc.SchemaFromDTO(&UserDto{})
+	// Registra los DTOs en #/components/schemas/
+	_, _ = doc.ComponentSchemaFromDTO(&UserDto{})
 }
 ```
 
-This function does several important things:
+Esta función:
 
-1. Registers the Swagger middleware in the Gin router.
-2. Configures the routes where OpenAPI JSON and Swagger UI will be exposed.
-3. Defines basic API metadata (Info Object) such as title, version, and description.
-4. Sets up server information using the OpenAPI 3.0 `servers` array.
-5. Registers DTOs for use in the documentation.
+1. Registra el middleware Swagger en el router de Gin.
+2. Configura las rutas donde se expondrá el JSON de OpenAPI y Swagger UI.
+3. Define metadatos básicos de la API.
+4. Configura la información de servidores.
+5. Registra los DTOs para la documentación.
 
-## Step 4: Defining an endpoint handler
+## Paso 4: Definir un handler para el endpoint
 
-Now, we'll define a simple Gin handler to retrieve a user by their ID:
+Define un handler simple para obtener un usuario por su ID:
 
 ```go
 func GetUserById(c *gin.Context) {
 	idStr := c.Param("id")
-    // In a real app, parse idStr to int and fetch user data
 	c.JSON(http.StatusOK, UserDto{
-		ID:   1, // Example, use parsed id
+		ID:   1,
 		Name: "John Doe (id: " + idStr + ")",
 	})
 }
 ```
 
-This function gets the user ID from the route parameters and returns user data in JSON format.
+## Paso 5: Documentar el endpoint con sintaxis OpenAPI 3.0
 
-## Step 5: Documenting the endpoint with OpenAPI 3.0 syntax
-
-This is where Go Swagger Generator v2 shines. To document our endpoint, we use a fluid syntax adhering to OpenAPI 3.0 principles:
+Aquí es donde brilla Go Swagger Generator v2. Documenta el endpoint usando sintaxis fluida:
 
 ```go
-// Document the /users/{id} GET endpoint
-// Path is relative to the server URLs defined in doc.Server(...)
-var _ = swagger.Swagger().Path("/users/{id}"). 
+// Documenta el endpoint GET /users/{id}
+var _ = swagger.Swagger().Path("/users/{id}").
 	Get(func(op openapi.Operation) {
-		op.Summary("Find user by ID").
-			Tag("User Operations"). // For grouping in Swagger UI
-			OperationID("getUserById"). // Unique ID for the operation
+		op.Summary("Buscar usuario por ID").
+			Tag("Operaciones de Usuario").
+			OperationID("getUserById").
 			PathParameter("id", func(p openapi.Parameter) {
-				p.Description("ID of the user to retrieve").
+				p.Description("ID del usuario a recuperar").
 					Required(true).
-					Schema(func(s openapi.Schema) { // Define schema for the path parameter
+					Schema(func(s openapi.Schema) {
 						s.Type("integer").Format("int64")
 					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
-				r.Description("Successful operation - user found").
-					Content(mime.ApplicationJSON, func(mt openapi.MediaType) { // Define content type and schema
-						mt.SchemaFromDTO(&UserDto{}) // Use the UserDto for the response schema
+				r.Description("Operación exitosa - usuario encontrado").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&UserDto{})
 					})
 			}).
-            Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("User not found")
-            })
+			Response(http.StatusNotFound, func(r openapi.Response) {
+				r.Description("Usuario no encontrado")
+			})
 	}).
-	Doc() // Registers this documentation path
+	Doc()
 ```
 
-This documentation:
+Esta documentación:
 
-1. Defines an endpoint at the route `/users/{id}` (relative to server URLs) with the GET method.
-2. Provides a clear summary, tag for grouping, and a unique operation ID.
-3. Specifies the content type (JSON) and schema for the successful response using `Content` and `SchemaFromDTO`.
-4. Documents the path parameter `id` as a required 64-bit integer using `PathParameter` and its `Schema`.
-5. Defines possible responses, including `200 OK` and `404 Not Found`.
+1. Define el endpoint `/users/{id}` con método GET.
+2. Proporciona resumen, tag y operationId.
+3. Especifica el tipo de contenido y el esquema de respuesta.
+4. Documenta el parámetro de ruta `id` como entero requerido.
+5. Define respuestas posibles: `200 OK` y `404 Not Found`.
 
-The `.Doc()` method at the end registers this documentation in the OpenAPI instance.
+El método `.Doc()` registra la documentación en la instancia OpenAPI.
 
-## Step 6: Implementing the main function
+## Paso 6: Implementar la función main
 
-Finally, we put everything together in our `main` function:
-
-```go
-func main() {
-	router := gin.Default()
-
-	// Configure OpenAPI documentation
-	ConfigureOpenAPI(router)
-
-	// Register our GET route for retrieving users (note the /v1 prefix matching server config)
-	router.GET("/v1/users/:id", GetUserById)
-
-	fmt.Println("Server running on http://localhost:8080")
-	fmt.Println("Swagger UI available at http://localhost:8080/")
-	fmt.Println("OpenAPI 3.0 JSON available at http://localhost:8080/openapi.json")
-	_ = router.Run(":8080")
-}
-```
-
-Here:
-1. We create a Gin router.
-2. We configure OpenAPI documentation in the router.
-3. We register our GET route `/v1/users/:id` for retrieving users. The `/v1` prefix matches one of our defined server URLs.
-4. We start the server on port 8080.
-
-## Complete code
-
-Here's the complete code for our application:
+Finalmente, une todo en la función `main`:
 
 ```go
 package main
@@ -190,10 +151,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ruiborda/go-swagger-generator/src/middleware"
-	"github.com/ruiborda/go-swagger-generator/src/openapi"
-	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-	"github.com/ruiborda/go-swagger-generator/src/swagger"
+	"github.com/ruiborda/go-swagger-generator/v2/src/middleware"
+	"github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+	"github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
+	"github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
 type UserDto struct {
@@ -208,41 +169,41 @@ func main() {
 
 	router.GET("/v1/users/:id", GetUserById)
 
-	fmt.Println("Server running on http://localhost:8080")
-	fmt.Println("Swagger UI available at http://localhost:8080/")
-	fmt.Println("OpenAPI 3.0 JSON available at http://localhost:8080/openapi.json")
+	fmt.Println("Servidor corriendo en http://localhost:8080")
+	fmt.Println("Swagger UI disponible en http://localhost:8080/")
+	fmt.Println("OpenAPI 3.0 JSON disponible en http://localhost:8080/openapi.json")
 	_ = router.Run(":8080")
 }
 
-// Document the /users/{id} GET endpoint
+// Documenta el endpoint GET /users/{id}
 var _ = swagger.Swagger().Path("/users/{id}").
 	Get(func(op openapi.Operation) {
-		op.Summary("Find user by ID").
-			Tag("User Operations").
+		op.Summary("Buscar usuario por ID").
+			Tag("Operaciones de Usuario").
 			OperationID("getUserById").
 			PathParameter("id", func(p openapi.Parameter) {
-				p.Description("ID of the user to retrieve").
+				p.Description("ID del usuario a recuperar").
 					Required(true).
 					Schema(func(s openapi.Schema) {
 						s.Type("integer").Format("int64")
 					})
 			}).
 			Response(http.StatusOK, func(r openapi.Response) {
-				r.Description("Successful operation - user found").
+				r.Description("Operación exitosa - usuario encontrado").
 					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
 						mt.SchemaFromDTO(&UserDto{})
 					})
 			}).
-            Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("User not found")
-            })
+			Response(http.StatusNotFound, func(r openapi.Response) {
+				r.Description("Usuario no encontrado")
+			})
 	}).
 	Doc()
 
 func GetUserById(c *gin.Context) {
 	idStr := c.Param("id")
 	c.JSON(http.StatusOK, UserDto{
-		ID:   1, // Example ID
+		ID:   1,
 		Name: "John Doe (id: " + idStr + ")",
 	})
 }
@@ -254,39 +215,32 @@ func ConfigureOpenAPI(router *gin.Engine) {
 		UIPath:   "/",
 		Title:    "Simple API with OpenAPI 3.0",
 	}))
-
 	doc := swagger.Swagger()
-
 	doc.Info(func(info openapi.Info) {
 		info.Title("Simple API").
 			Version("1.0.0").
-			Description("This is a simple API example using Go Swagger Generator v2 and OpenAPI 3.0.")
+			Description("Este es un ejemplo de API usando Go Swagger Generator v2 y OpenAPI 3.0.")
 	})
 	doc.Server("http://localhost:8080/v1", func(server openapi.Server) {
-		server.Description("Local development server - API version 1")
+		server.Description("Servidor local de desarrollo - API versión 1")
 	})
-
-    _, _ = doc.SchemaFromDTO(&UserDto{})
+	_, _ = doc.ComponentSchemaFromDTO(&UserDto{})
 }
-
 ```
 
-## Testing our documented API
+## Probar la API documentada
 
-To test our implementation:
+1. Guarda el código anterior en un archivo `main.go`.
+2. Ejecuta `go mod init tunombreproyecto` si no tienes un módulo Go.
+3. Ejecuta `go mod tidy` para instalar dependencias (incluye go-swagger-generator/v2).
+4. Inicia la app con `go run main.go`.
+5. Abre tu navegador en [http://localhost:8080](http://localhost:8080).
 
-1. Save the above code in a `main.go` file.
-2. Run `go mod init yourprojectname` (if you haven't already).
-3. Run `go mod tidy` to ensure you have all dependencies (it will fetch `go-swagger-generator@v2`).
-4. Start the application with `go run main.go`.
-5. Open your browser at [http://localhost:8080](http://localhost:8080).
+Deberías ver la interfaz Swagger UI mostrando tu API documentada. Puedes explorar los endpoints y probar llamadas desde la interfaz.
 
-You should see the Swagger UI interface displaying your documented API. You can explore the endpoints, see the required parameters, and test the calls directly from the interface.
+## Conclusión
 
-## Conclusion
+Integrar OpenAPI 3.0 en una API Gin usando Go Swagger Generator v2 es sencillo y aporta grandes beneficios. En minutos tendrás documentación interactiva y profesional que evoluciona junto a tu código.
 
-Integrating OpenAPI 3.0 into a Gin API using Go Swagger Generator v2 is a straightforward process that offers great benefits. In just a few minutes, you get interactive and professional documentation that evolves along with your code.
+¿Tienes dudas sobre cómo integrar OpenAPI 3.0 en tu API Go con v2? ¡Déjalas en los comentarios!
 
-Go Swagger Generator v2 provides an elegant and fluid syntax for documenting your APIs, making the process more enjoyable and less error-prone than comment-based solutions, fully leveraging the power of OpenAPI 3.0.
-
-Do you have any questions about integrating OpenAPI 3.0 into your Go API with v2? Let us know in the comments!
