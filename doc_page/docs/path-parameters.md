@@ -1,15 +1,15 @@
 ---
 sidebar_position: 10
-title: Path Parameters
+title: Path Parameters (v2)
 ---
 
-# Documenting Path Parameters
+# Documenting Path Parameters (v2)
 
-This guide shows how to document path parameters with go-swagger-generator using practical examples.
+This guide shows how to document path parameters with Go-Swagger-Generator v2 for OpenAPI 3.0. Path parameters are variable parts of a URL path, enclosed in curly braces (e.g., `/users/{userId}`). They are always required.
 
 ## Basic Path Parameter
 
-Here's a simple example of documenting an endpoint with a path parameter:
+Here's a simple example of documenting an endpoint with a single path parameter.
 
 ```go
 package main
@@ -24,29 +24,34 @@ import (
 
 // Pet DTO
 type Pet struct {
-    ID        int64  `json:"id,omitempty"`
-    Name      string `json:"name"`
-    Status    string `json:"status,omitempty"` // available, pending, sold
+    ID     int64  `json:"id,omitempty" yaml:"id,omitempty"`
+    Name   string `json:"name" yaml:"name"`
+    Status string `json:"status,omitempty" yaml:"status,omitempty"` // e.g., available, pending, sold
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Pet{})
 
-// Swagger documentation for GET /pet/{petId}
-var _ = swagger.Swagger().Path("/pet/{petId}").
+// Swagger documentation for GET /pets/{petId}
+var _ = swagger.Swagger().Path("/pets/{petId}"). // Path relative to server URL
     Get(func(op openapi.Operation) {
         op.Summary("Find pet by ID").
-            Description("Returns a single pet").
-            OperationID("getPetById").
-            Tag("pet").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
+            Description("Returns a single pet by its ID.").
+            OperationID("getPetByIdV2").
+            Tag("Pet Operations").
             PathParameter("petId", func(p openapi.Parameter) {
-                p.Description("ID of pet to return").
-                    Type("integer").
-                    Format("int64")
+                p.Description("ID of the pet to retrieve").
+                  Required(true). // Path parameters are inherently required
+                  Schema(func(s openapi.Schema) { // Define schema for the path parameter
+                      s.Type("integer").Format("int64")
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").SchemaFromDTO(&Pet{})
+                r.Description("Successful operation - pet found").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Pet{})
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid ID supplied")
+                r.Description("Invalid ID supplied (e.g., not an integer)")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("Pet not found")
@@ -54,23 +59,18 @@ var _ = swagger.Swagger().Path("/pet/{petId}").
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func GetPetByID(c *gin.Context) {
-    petID := c.Param("petId")
-    // Implementation details
+    // petIDStr := c.Param("petId")
+    // Convert petIDStr to int64, fetch pet...
     pet := Pet{ID: 1, Name: "Doggie", Status: "available"}
     c.JSON(http.StatusOK, pet)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/pet/:petId", GetPetByID)
 }
 ```
 
 ## Path Parameter with Validation
 
-This example shows how to document a path parameter with validation constraints:
+This example shows how to document a path parameter with validation constraints (e.g., minimum/maximum values) defined within its schema.
 
 ```go
 package main
@@ -85,31 +85,36 @@ import (
 
 // Order DTO
 type Order struct {
-    ID       int64  `json:"id,omitempty"`
-    PetID    int64  `json:"petId,omitempty"`
-    Quantity int32  `json:"quantity,omitempty"`
-    Status   string `json:"status,omitempty"` // placed, approved, delivered
+    ID       int64  `json:"id,omitempty" yaml:"id,omitempty"`
+    PetID    int64  `json:"petId,omitempty" yaml:"petId,omitempty"`
+    Quantity int32  `json:"quantity,omitempty" yaml:"quantity,omitempty"`
+    Status   string `json:"status,omitempty" yaml:"status,omitempty"` // e.g., placed, approved, delivered
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Order{})
 
-// Swagger documentation for GET /store/order/{orderId}
-var _ = swagger.Swagger().Path("/store/order/{orderId}").
+// Swagger documentation for GET /store/orders/{orderId}
+var _ = swagger.Swagger().Path("/store/orders/{orderId}").
     Get(func(op openapi.Operation) {
         op.Summary("Find purchase order by ID").
-            Description("For valid response try integer IDs with value >= 1 and <= 10. Other values will generate exceptions").
-            OperationID("getOrderById").
-            Tag("store").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
+            Description("Retrieves a purchase order. Order ID must be between 1 and 1000 (inclusive).").
+            OperationID("getOrderByIdV2").
+            Tag("Store Operations").
             PathParameter("orderId", func(p openapi.Parameter) {
-                p.Description("ID of pet that needs to be fetched").
-                    Type("integer").Format("int64").
-                    Minimum(1, false).  // Minimum value (exclusive=false means inclusive)
-                    Maximum(10, false)  // Maximum value (exclusive=false means inclusive)
+                p.Description("ID of the purchase order to retrieve").
+                  Schema(func(s openapi.Schema) {
+                      s.Type("integer").Format("int64").
+                        Minimum(1, false).   // Minimum value 1 (inclusive)
+                        Maximum(1000, false) // Maximum value 1000 (inclusive)
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").SchemaFromDTO(&Order{})
+                r.Description("Successful operation - order found").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Order{})
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid ID supplied")
+                r.Description("Invalid Order ID supplied (e.g., out of range or not an integer)")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("Order not found")
@@ -117,23 +122,18 @@ var _ = swagger.Swagger().Path("/store/order/{orderId}").
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func GetOrderByID(c *gin.Context) {
-    orderID := c.Param("orderId")
-    // Implementation details
-    order := Order{ID: 1, PetID: 1, Quantity: 5, Status: "placed"}
+    // orderIDStr := c.Param("orderId")
+    // Convert, validate range, fetch order...
+    order := Order{ID: 1, PetID: 100, Quantity: 1, Status: "placed"}
     c.JSON(http.StatusOK, order)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/store/order/:orderId", GetOrderByID)
 }
 ```
 
-## String Path Parameter
+## String Path Parameter with Pattern
 
-Here's an example of documenting a path parameter that's a string with pattern validation:
+Here's an example of documenting a string path parameter with pattern, minLength, and maxLength validations.
 
 ```go
 package main
@@ -148,30 +148,35 @@ import (
 
 // User DTO
 type User struct {
-    ID       int64  `json:"id,omitempty"`
-    Username string `json:"username,omitempty"`
-    Email    string `json:"email,omitempty"`
+    ID       int64  `json:"id,omitempty" yaml:"id,omitempty"`
+    Username string `json:"username" yaml:"username"`
+    Email    string `json:"email,omitempty" yaml:"email,omitempty"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&User{})
 
-// Swagger documentation for GET /user/{username}
-var _ = swagger.Swagger().Path("/user/{username}").
+// Swagger documentation for GET /users/{username}
+var _ = swagger.Swagger().Path("/users/{username}").
     Get(func(op openapi.Operation) {
-        op.Summary("Get user by user name").
-            OperationID("getUserByName").
-            Tag("user").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
+        op.Summary("Get user by username").
+            OperationID("getUserByUsernameV2").
+            Tag("User Operations").
             PathParameter("username", func(p openapi.Parameter) {
-                p.Description("The name that needs to be fetched").
-                    Type("string").
-                    Pattern("^[a-zA-Z0-9]+$").  // Only alphanumeric characters
-                    MinLength(3).               // Minimum length
-                    MaxLength(50)               // Maximum length
+                p.Description("The username for login (alphanumeric, 3-20 chars)").
+                  Schema(func(s openapi.Schema) {
+                      s.Type("string").
+                        Pattern("^[a-zA-Z0-9]+$"). // Regex for alphanumeric
+                        MinLength(3).              // Minimum length
+                        MaxLength(20)              // Maximum length
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").SchemaFromDTO(&User{})
+                r.Description("Successful operation - user found").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&User{})
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid username supplied")
+                r.Description("Invalid username supplied (e.g., fails pattern or length constraints)")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("User not found")
@@ -179,23 +184,18 @@ var _ = swagger.Swagger().Path("/user/{username}").
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func GetUserByName(c *gin.Context) {
-    username := c.Param("username")
-    // Implementation details
-    user := User{ID: 1, Username: username, Email: "user@example.com"}
+    // username := c.Param("username")
+    // Validate username format (Gin can also do this with bindings in routes), fetch user...
+    user := User{ID: 1, Username: "testuser", Email: "testuser@example.com"}
     c.JSON(http.StatusOK, user)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/user/:username", GetUserByName)
 }
 ```
 
 ## Multiple Path Parameters
 
-This example demonstrates how to document an endpoint with multiple path parameters:
+This example demonstrates documenting an endpoint with multiple path parameters.
 
 ```go
 package main
@@ -210,66 +210,57 @@ import (
 
 // Comment DTO
 type Comment struct {
-    ID      int64  `json:"id,omitempty"`
-    PostID  int64  `json:"postId,omitempty"`
-    Content string `json:"content"`
-    Author  string `json:"author"`
+    ID      int64  `json:"id,omitempty" yaml:"id,omitempty"`
+    PostID  int64  `json:"postId,omitempty" yaml:"postId,omitempty"` // Matches path param name if desired
+    Content string `json:"content" yaml:"content"`
+    Author  string `json:"author" yaml:"author"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Comment{})
 
-// Swagger documentation for GET /posts/{postId}/comments/{commentId}
-var _ = swagger.Swagger().Path("/posts/{postId}/comments/{commentId}").
+// Swagger documentation for GET /archives/{year}/{month}/posts
+var _ = swagger.Swagger().Path("/archives/{year}/{month}/posts").
     Get(func(op openapi.Operation) {
-        op.Summary("Get a specific comment on a post").
-            Description("Returns a single comment from a specific post").
-            OperationID("getPostComment").
-            Tag("comments").
-            Produces(mime.ApplicationJSON).
-            PathParameter("postId", func(p openapi.Parameter) {
-                p.Description("ID of the post").
-                    Type("integer").Format("int64").
-                    Required(true)
+        op.Summary("Get posts from a specific month and year").
+            Description("Returns a list of posts for the given year and month.").
+            OperationID("getArchivedPostsV2").
+            Tag("Archive Operations").
+            PathParameter("year", func(p openapi.Parameter) {
+                p.Description("The year of the archive (e.g., 2023)").
+                  Schema(func(s openapi.Schema) { 
+                      s.Type("integer").Format("int32").Minimum(1900, false).Maximum(2100, false)
+                  })
             }).
-            PathParameter("commentId", func(p openapi.Parameter) {
-                p.Description("ID of the comment").
-                    Type("integer").Format("int64").
-                    Required(true)
+            PathParameter("month", func(p openapi.Parameter) {
+                p.Description("The month of the archive (1-12)").
+                  Schema(func(s openapi.Schema) { 
+                      s.Type("integer").Format("int32").Minimum(1, false).Maximum(12, false)
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").SchemaFromDTO(&Comment{})
+                r.Description("Successful operation - list of posts returned").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&[]*Comment{}) // Example, should be Post DTO
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid ID supplied")
-            }).
-            Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("Comment not found")
+                r.Description("Invalid year or month supplied")
             })
     }).
     Doc()
 
-// Handler function
-func GetPostComment(c *gin.Context) {
-    postID := c.Param("postId")
-    commentID := c.Param("commentId")
-    
-    // Implementation details
-    comment := Comment{
-        ID: 1,
-        PostID: 1,
-        Content: "This is a great post!",
-        Author: "John Doe",
-    }
-    c.JSON(http.StatusOK, comment)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/posts/:postId/comments/:commentId", GetPostComment)
+// Handler function (example)
+func GetArchivedPosts(c *gin.Context) {
+    // yearStr := c.Param("year")
+    // monthStr := c.Param("month")
+    // Convert, validate, fetch posts...
+    comments := []*Comment{{ID:1, PostID:1, Content:"A post", Author:"Test"}}
+    c.JSON(http.StatusOK, comments)
 }
 ```
 
 ## Path Parameter with Enum Values
 
-Here's how to document a path parameter that only accepts certain values:
+Here's how to document a path parameter that must be one of a predefined set of values (enum).
 
 ```go
 package main
@@ -277,60 +268,53 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
+// Report DTO (example for response)
+type ReportData struct {
+    Title string `json:"title" yaml:"title"`
+    Data  string `json:"data" yaml:"data"` 
+}
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&ReportData{})
+
 // Swagger documentation for GET /reports/{reportType}/download
 var _ = swagger.Swagger().Path("/reports/{reportType}/download").
     Get(func(op openapi.Operation) {
-        op.Summary("Download a report").
-            Description("Downloads a report in the specified format").
-            OperationID("downloadReport").
-            Tag("reports").
-            Produces("application/pdf", "application/vnd.ms-excel", "text/csv").
+        op.Summary("Download a specific type of report").
+            Description("Downloads a report. The type of report must be one of the allowed values.").
+            OperationID("downloadReportByTypeV2").
+            Tag("Report Operations").
             PathParameter("reportType", func(p openapi.Parameter) {
                 p.Description("Type of report to download").
-                    Type("string").
-                    Enum("sales", "inventory", "customers", "analytics")  // Only these values are allowed
+                  Schema(func(s openapi.Schema) {
+                      s.Type("string").
+                        Enum("sales", "inventory", "customers", "analytics") // Allowed enum values
+                  })
             }).
-            QueryParameter("year", func(p openapi.Parameter) {
-                p.Description("Year for the report data").
-                    Type("integer").Format("int32").
-                    Minimum(2000, false).Maximum(2030, false)
-            }).
-            QueryParameter("month", func(p openapi.Parameter) {
-                p.Description("Month for the report data (1-12)").
-                    Type("integer").Format("int32").
-                    Minimum(1, false).Maximum(12, false)
+            QueryParameter("format", func(p openapi.Parameter) { // Example of an additional query param
+                 p.Description("Format of the report (e.g., pdf, csv)").Required(false).
+                   Schema(func(s openapi.Schema){ s.Type("string").Default("pdf") })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Report downloaded successfully")
+                r.Description("Report downloaded successfully (binary data)").
+                  Content(mime.ApplicationOctetStream, func(mt openapi.MediaType) { // Example for generic binary file
+                      mt.Schema(func(s openapi.Schema) { s.Type("string").Format("binary") })
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid parameters")
-            }).
-            Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("Report not found")
+                r.Description("Invalid report type or format supplied")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func DownloadReport(c *gin.Context) {
-    reportType := c.Param("reportType")
-    year := c.Query("year")
-    month := c.Query("month")
-    
-    // Implementation details
-    c.Header("Content-Disposition", "attachment; filename=report.pdf")
-    c.Data(http.StatusOK, "application/pdf", []byte("Report data"))
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/reports/:reportType/download", DownloadReport)
+    // reportType := c.Param("reportType")
+    // format := c.Query("format")
+    // Generate report based on type and format, then send as binary data...
+    c.Data(http.StatusOK, mime.ApplicationOctetStream, []byte("Report binary data..."))
 }
 ```
