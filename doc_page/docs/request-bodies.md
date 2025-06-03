@@ -1,15 +1,15 @@
 ---
 sidebar_position: 12
-title: Request Bodies
+title: Request Bodies (v2)
 ---
 
-# Documenting Request Bodies
+# Documenting Request Bodies (v2)
 
-This guide shows how to document request bodies with go-swagger-generator using practical examples.
+This guide shows how to document request bodies with Go-Swagger-Generator v2 for OpenAPI 3.0. Request bodies are typically used with POST, PUT, and PATCH operations to send data to the server.
 
 ## Basic JSON Request Body
 
-Here's a simple example of documenting an endpoint that accepts a JSON request body:
+Here's an example of documenting an endpoint (e.g., POST for creating a resource) that accepts a JSON request body.
 
 ```go
 package main
@@ -24,54 +24,58 @@ import (
 
 // Pet DTO
 type Pet struct {
-    ID        int64     `json:"id,omitempty"`
-    Name      string    `json:"name"`
-    PhotoUrls []string  `json:"photoUrls"`
-    Status    string    `json:"status,omitempty"` // available, pending, sold
+    ID        int64    `json:"id,omitempty" yaml:"id,omitempty"`
+    Name      string   `json:"name" yaml:"name"`
+    PhotoUrls []string `json:"photoUrls" yaml:"photoUrls"`
+    Status    string   `json:"status,omitempty" yaml:"status,omitempty"` // e.g., available, pending, sold
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Pet{})
 
-// Swagger documentation for POST /pet
-var _ = swagger.Swagger().Path("/pet").
-    Post(func(operation openapi.Operation) {
-        operation.Summary("Add a new pet to the store").
-            OperationID("addPet").
-            Tag("pet").
-            Consumes(string(mime.ApplicationJSON), string(mime.ApplicationXML)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Pet object that needs to be added to the store").
-                    Required(true).
-                    SchemaFromDTO(&Pet{})  // Generate schema from struct
+// Swagger documentation for POST /pets
+var _ = swagger.Swagger().Path("/pets"). // Path relative to server URL
+    Post(func(op openapi.Operation) {
+        op.Summary("Add a new pet to the store").
+            OperationID("addPetV2").
+            Tag("Pet Operations").
+            RequestBody(func(rb openapi.RequestBody) { // Define the request body
+                rb.Description("Pet object that needs to be added to the store").
+                  Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) { // Specify content type
+                      mt.SchemaFromDTO(&Pet{}) // Generate schema from Pet DTO
+                  })
+                // Optionally, support other content types like XML:
+                // rb.Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+                //    mt.SchemaFromDTO(&Pet{})
+                // })
             }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Pet successfully added")
+            Response(http.StatusCreated, func(r openapi.Response) {
+                r.Description("Pet created successfully").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Pet{}) // Return the created pet
+                  })
             }).
-            Response(http.StatusMethodNotAllowed, func(r openapi.Response) {
-                r.Description("Invalid input")
+            Response(http.StatusBadRequest, func(r openapi.Response) {
+                r.Description("Invalid input provided")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func AddPet(c *gin.Context) {
     var pet Pet
     if err := c.ShouldBindJSON(&pet); err != nil {
-        c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "Invalid input"})
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
         return
     }
-    // Implementation details
-    c.JSON(http.StatusOK, pet)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/pet", AddPet)
+    pet.ID = 123 // Simulate ID generation
+    // Save pet to database...
+    c.JSON(http.StatusCreated, pet)
 }
 ```
 
-## Request Body with Custom Schema
+## Request Body with Custom Inline Schema
 
-This example shows how to document a request body with a custom schema:
+If you don't have a DTO or need a very specific structure for a single request, you can define the schema inline.
 
 ```go
 package main
@@ -79,115 +83,80 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
+
+// EventData structure for the example (could also be a DTO)
+type EventData struct {
+    EventName  string                 `json:"eventName"`
+    Timestamp  string                 `json:"timestamp"`
+    Properties map[string]interface{} `json:"properties,omitempty"`
+}
 
 // Swagger documentation for POST /analytics/events
 var _ = swagger.Swagger().Path("/analytics/events").
     Post(func(op openapi.Operation) {
         op.Summary("Track analytics events").
-            Description("Send multiple analytics events in a single request").
-            OperationID("trackEvents").
-            Tag("analytics").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Events to track").
-                    Required(true).
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "userId": {
-                                Type:        "string",
-                                Description: "Unique identifier for the user",
-                                Required:    []string{"userId"},
-                            },
-                            "sessionId": {
-                                Type:        "string",
-                                Description: "Current session identifier",
-                            },
-                            "events": {
-                                Type:        "array",
-                                Description: "List of events to track",
-                                Items: &openapi_spec.SchemaEntity{
-                                    Type: "object",
-                                    Properties: map[string]*openapi_spec.SchemaEntity{
-                                        "eventName": {
-                                            Type:        "string",
-                                            Description: "Name of the event",
-                                        },
-                                        "timestamp": {
-                                            Type:        "string",
-                                            Format:      "date-time",
-                                            Description: "When the event occurred",
-                                        },
-                                        "properties": {
-                                            Type:        "object",
-                                            Description: "Additional properties for the event",
-                                            AdditionalProperties: &openapi_spec.SchemaEntity{
-                                                Type: "string",
-                                            },
-                                        },
-                                    },
-                                    Required: []string{"eventName", "timestamp"},
-                                },
-                            },
-                        },
-                        Required: []string{"userId", "events"},
-                    })
+            Description("Send one or more analytics events in a single request.").
+            OperationID("trackEventsV2").
+            Tag("Analytics Operations").
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Analytics events payload").
+                  Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) { // Define schema inline
+                          s.Type("object").
+                            Required("userId", "events").
+                            Property("userId", func(ps openapi.Schema) {
+                                ps.Type("string").Description("Unique identifier for the user")
+                            }).
+                            Property("sessionId", func(ps openapi.Schema) {
+                                ps.Type("string").Description("Current session identifier (optional)")
+                            }).
+                            Property("events", func(ps openapi.Schema) {
+                                ps.Type("array").Description("List of events to track").MinItems(1).
+                                  Items(func(itemSchema openapi.Schema) { // Schema for each event in the array
+                                      itemSchema.Type("object").Required("eventName", "timestamp").
+                                        Property("eventName", func(prop openapi.Schema){ prop.Type("string") }).
+                                        Property("timestamp", func(prop openapi.Schema){ prop.Type("string").Format("date-time") }).
+                                        Property("properties", func(prop openapi.Schema){
+                                            prop.Type("object").Description("Additional key-value pairs for the event").
+                                               AdditionalProperties(true, openapi.S().Type("string")) // Example: all additional props are strings
+                                        })
+                                  })
+                            })
+                      })
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
                 r.Description("Events tracked successfully").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "tracked": {Type: "integer", Format: "int32"},
-                            "failed": {Type: "integer", Format: "int32"},
-                        },
-                    })
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) { // Response schema
+                          s.Type("object").
+                            Property("trackedCount", func(ps openapi.Schema){ ps.Type("integer") }).
+                            Property("failedCount", func(ps openapi.Schema){ ps.Type("integer") })
+                      })
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid event data")
+                r.Description("Invalid event data provided")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func TrackEvents(c *gin.Context) {
-    var request struct {
-        UserID    string `json:"userId"`
-        SessionID string `json:"sessionId"`
-        Events    []struct {
-            EventName  string                 `json:"eventName"`
-            Timestamp  string                 `json:"timestamp"`
-            Properties map[string]interface{} `json:"properties"`
-        } `json:"events"`
-    }
-
-    if err := c.ShouldBindJSON(&request); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event data"})
-        return
-    }
-
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{
-        "tracked": len(request.Events),
-        "failed": 0,
-    })
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/analytics/events", TrackEvents)
+    // var requestPayload struct { ... } // Define a struct to bind JSON
+    // if err := c.ShouldBindJSON(&requestPayload); ...
+    c.JSON(http.StatusOK, gin.H{"trackedCount": 1, "failedCount": 0})
 }
 ```
 
-## Array in Request Body
+## Array as Request Body
 
-Here's an example of documenting a request body that contains an array:
+If the entire request body is an array of objects (e.g., bulk creation).
 
 ```go
 package main
@@ -195,184 +164,55 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// User DTO
-type User struct {
-    ID       int64  `json:"id,omitempty"`
-    Username string `json:"username,omitempty"`
-    Email    string `json:"email,omitempty"`
-    Status   string `json:"status,omitempty"`
-}
+// User DTO (defined in earlier examples)
+// type User struct { ... }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&User{})
 
-// Swagger documentation for POST /user/createWithArray
-var _ = swagger.Swagger().Path("/user/createWithArray").
+// Swagger documentation for POST /users/bulkCreate
+var _ = swagger.Swagger().Path("/users/bulkCreate").
     Post(func(op openapi.Operation) {
-        op.Summary("Creates list of users with given input array").
-            OperationID("createUsersWithArrayInput").
-            Tag("user").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("List of user objects").Required(true).
-                    Schema(openapi_spec.SchemaEntity{
-                        Type:  "array",
-                        Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/User"},
-                    })
+        op.Summary("Creates multiple users from a list").
+            OperationID("createUsersWithListV2").
+            Tag("User Operations").
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("List of user objects to create").Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      // For an array request body, use SchemaFromDTO with a pointer to a slice of DTO pointers
+                      mt.SchemaFromDTO(&[]*User{}) 
+                  })
             }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation")
+            Response(http.StatusCreated, func(r openapi.Response) {
+                r.Description("Users created successfully (or report on status)")
+                // Response could be a summary, e.g., number created/failed
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid user data")
+                r.Description("Invalid user data in the list")
             })
     }).
     Doc()
 
-// Handler function
-func CreateUsersWithArray(c *gin.Context) {
-    var users []User
+// Handler function (example)
+func CreateUsersWithList(c *gin.Context) {
+    var users []*User
     if err := c.ShouldBindJSON(&users); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user data"})
         return
     }
-    
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{"message": "Users created", "count": len(users)})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/user/createWithArray", CreateUsersWithArray)
+    // Implementation to create multiple users...
+    c.JSON(http.StatusCreated, gin.H{"message": "Users processed", "count": len(users)})
 }
 ```
 
-## Request Body with Validation
+## Form Data Request Body (`application/x-www-form-urlencoded` or `multipart/form-data`)
 
-This example demonstrates how to document a request body with validation constraints:
+For form data, the `Content` type is typically `application/x-www-form-urlencoded` or `multipart/form-data`. The schema describes the form fields.
 
-```go
-package main
-
-import (
-    "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
-    "net/http"
-)
-
-// Register DTO
-type RegisterRequest struct {
-    Username  string `json:"username"`
-    Email     string `json:"email"`
-    Password  string `json:"password"`
-    FirstName string `json:"firstName,omitempty"`
-    LastName  string `json:"lastName,omitempty"`
-    Age       int    `json:"age,omitempty"`
-}
-
-// Swagger documentation for POST /auth/register
-var _ = swagger.Swagger().Path("/auth/register").
-    Post(func(op openapi.Operation) {
-        op.Summary("Register a new user").
-            Description("Create a new user account").
-            OperationID("registerUser").
-            Tag("auth").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("User registration details").
-                    Required(true).
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "username": {
-                                Type:        "string",
-                                Description: "Username for the new account",
-                                MinLength:   4,
-                                MaxLength:   20,
-                                Pattern:     "^[a-zA-Z0-9_]+$", // Alphanumeric and underscore only
-                            },
-                            "email": {
-                                Type:        "string",
-                                Description: "Email address",
-                                Format:      "email",
-                            },
-                            "password": {
-                                Type:        "string",
-                                Description: "Password (min 8 chars, must include uppercase, lowercase, and number)",
-                                MinLength:   8,
-                                Pattern:     "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$",
-                            },
-                            "firstName": {
-                                Type:        "string",
-                                Description: "First name",
-                            },
-                            "lastName": {
-                                Type:        "string",
-                                Description: "Last name",
-                            },
-                            "age": {
-                                Type:        "integer",
-                                Description: "Age in years",
-                                Format:      "int32",
-                                Minimum:     13, // Minimum age
-                                Maximum:     120, // Maximum age
-                            },
-                        },
-                        Required: []string{"username", "email", "password"},
-                    })
-            }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("User registered successfully").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "userId": {Type: "integer", Format: "int64"},
-                            "username": {Type: "string"},
-                        },
-                    })
-            }).
-            Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid registration data")
-            }).
-            Response(http.StatusConflict, func(r openapi.Response) {
-                r.Description("Username or email already exists")
-            })
-    }).
-    Doc()
-
-// Handler function
-func RegisterUser(c *gin.Context) {
-    var req RegisterRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid registration data"})
-        return
-    }
-
-    // Validation and implementation details
-    
-    c.JSON(http.StatusOK, gin.H{
-        "userId": 12345,
-        "username": req.Username,
-    })
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/auth/register", RegisterUser)
-}
-```
-
-## Form Data Request Body
-
-Here's how to document an endpoint that accepts form data:
+**`application/x-www-form-urlencoded` Example:**
 
 ```go
 package main
@@ -385,68 +225,46 @@ import (
     "net/http"
 )
 
-// Swagger documentation for POST /contact
-var _ = swagger.Swagger().Path("/contact").
+// Swagger documentation for POST /submit-feedback
+var _ = swagger.Swagger().Path("/submit-feedback").
     Post(func(op openapi.Operation) {
-        op.Summary("Send contact message").
-            Description("Submit a contact form message").
-            OperationID("sendContactMessage").
-            Tag("contact").
-            Consumes("application/x-www-form-urlencoded").
-            Produces(mime.ApplicationJSON).
-            FormParameter("name", func(p openapi.Parameter) {
-                p.Description("Your full name").
-                    Type("string").
-                    Required(true).
-                    MinLength(2).
-                    MaxLength(100)
-            }).
-            FormParameter("email", func(p openapi.Parameter) {
-                p.Description("Your email address").
-                    Type("string").
-                    Required(true).
-                    Format("email")
-            }).
-            FormParameter("subject", func(p openapi.Parameter) {
-                p.Description("Message subject").
-                    Type("string").
-                    Required(true).
-                    MinLength(5).
-                    MaxLength(200)
-            }).
-            FormParameter("message", func(p openapi.Parameter) {
-                p.Description("Message content").
-                    Type("string").
-                    Required(true).
-                    MinLength(10).
-                    MaxLength(2000)
+        op.Summary("Submit user feedback via form").
+            OperationID("submitFeedbackV2").
+            Tag("Feedback Operations").
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Feedback form data").Required(true).
+                  Content(mime.ApplicationFormUrlEncoded, func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) {
+                          s.Type("object").
+                            Required("email", "message"). // Specify required form fields
+                            Property("name", func(ps openapi.Schema){ ps.Type("string").Description("Your name (optional)") }).
+                            Property("email", func(ps openapi.Schema){ ps.Type("string").Format("email").Description("Your email address") }).
+                            Property("subject", func(ps openapi.Schema){ ps.Type("string").Description("Subject of feedback").Default("General Feedback") }).
+                            Property("message", func(ps openapi.Schema){ ps.Type("string").Description("Your feedback message").MinLength(10) })
+                      })
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Message sent successfully")
+                r.Description("Feedback submitted successfully")
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid form data")
+                r.Description("Invalid form data provided")
             })
     }).
     Doc()
 
-// Handler function
-func SendContactMessage(c *gin.Context) {
-    name := c.PostForm("name")
-    email := c.PostForm("email")
-    subject := c.PostForm("subject")
-    message := c.PostForm("message")
-    
-    // Validation and implementation details
-    
-    c.JSON(http.StatusOK, gin.H{
-        "success": true,
-        "message": "Thank you for your message!",
-    })
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/contact", SendContactMessage)
+// Handler function (example)
+func SubmitFeedback(c *gin.Context) {
+    // name := c.PostForm("name")
+    // email := c.PostForm("email")
+    // ... process form data ...
+    c.JSON(http.StatusOK, gin.H{"message": "Feedback received!"})
 }
 ```
+For `multipart/form-data` (e.g., including file uploads), see the [POST Endpoints (v2)](./post-endpoints.md#post-with-file-upload-multipartform-data) guide.
+
+**Key elements for `RequestBody`:**
+*   `Description(string)`: A description of the request body.
+*   `Required(bool)`: Whether the request body is mandatory.
+*   `Content(mimeType string, func(mt openapi.MediaType))`: Defines one or more media types the endpoint consumes.
+    *   Inside `Content`, `mt.SchemaFromDTO(&YourType{})` or `mt.Schema(func(s openapi.Schema){...})` defines the structure of the data for that media type.
