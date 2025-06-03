@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"github.com/ruiborda/go-swagger-generator/v2/src/middleware"
 	"github.com/ruiborda/go-swagger-generator/v2/src/openapi"
 	"github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
 	"github.com/ruiborda/go-swagger-generator/v2/src/swagger"
-	"net/http"
 )
 
 type UserDto struct {
@@ -17,57 +19,69 @@ type UserDto struct {
 func main() {
 	router := gin.Default()
 
-	// Registrar el esquema UserDto en Swagger
-	doc := swagger.Swagger()
-	_, _ = doc.SchemaFromDTO(&UserDto{})
+	ConfigureOpenAPI(router)
 
-	ConfigureSwagger(doc)
+	router.GET("/v1/users/:id", GetUserByIdHandler)
 
-	router.GET("/v1/users/:id", GetUserById)
-
-	fmt.Println("Server running on http://localhost:8080")
 	fmt.Println("Swagger UI available at http://localhost:8080/")
-	fmt.Println("Swagger JSON available at http://localhost:8080/openapi.json")
+	fmt.Println("OpenAPI 3.0 JSON available at http://localhost:8080/openapi.json")
 	_ = router.Run(":8080")
 }
 
-// Documentación de la ruta usando la API v2
-func ConfigureSwagger(doc openapi.SwaggerDocBuilder) {
-	doc.Info(func(info openapi.Info) {
-		info.Title("Simple API with OAS3").
-			Version("1.0").
-			Description("This is a simple API example using Swagger and OpenAPI 3.0.")
-	}).
-		Server("http://localhost:8080/v1", func(server openapi.Server) {
-			server.Description("Local development server V1")
-		})
+func GetUserByIdHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	c.JSON(http.StatusOK, UserDto{
+		ID:   1,
+		Name: "John Doe (User " + idStr + ")",
+	})
+}
 
-	doc.Path("/users/{id}", func(path openapi.PathItem) {
-		path.Get(func(op openapi.Operation) {
+// ConfigureOpenAPI sets up the OpenAPI 3.0 documentation.
+func ConfigureOpenAPI(router *gin.Engine) {
+	// Register the SwaggerGin middleware.
+	router.Use(middleware.SwaggerGin(middleware.SwaggerConfig{
+		Enabled:  true,                           // Enable Swagger UI and JSON endpoint.
+		JSONPath: "/openapi.json",                // Path to serve the OpenAPI JSON.
+		UIPath:   "/",                            // Path to serve the Swagger UI.
+		Title:    "My API with OpenAPI 3.0 (v2)", // Title for the Swagger UI page.
+	}))
+
+	// Get the global OpenAPI document builder instance.
+	doc := swagger.Swagger() // Defaults to OpenAPI 3.0 builder.
+
+	doc.Info(func(info openapi.Info) {
+		info.Title("Simple User API").
+			Version("1.0.0"). // API version
+			Description("A simple API to manage users, documented with Go Swagger Generator v2.")
+	})
+
+	doc.Server("http://localhost:8080/v1", func(server openapi.Server) {
+		server.Description("Local development server (v1)")
+	})
+
+	_, _ = doc.SchemaFromDTO(&UserDto{})
+
+	var _ = doc.Path("/users/{id}").
+		Get(func(op openapi.Operation) {
 			op.Summary("Find user by ID").
-				Tag("UserController").
-				OperationID("getUserById").
+				Tag("User Management").     // Groups operations in Swagger UI.
+				OperationID("getUserById"). // Unique ID for the operation.
 				PathParameter("id", func(p openapi.Parameter) {
 					p.Description("ID of the user to retrieve").
 						Required(true).
-						Schema(func(s openapi.Schema) {
+						Schema(func(s openapi.Schema) { // Define schema for the path parameter.
 							s.Type("integer").Format("int64")
 						})
 				}).
 				Response(http.StatusOK, func(r openapi.Response) {
-					r.Description("successful operation").
+					r.Description("Successful operation - user details returned").
 						Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
 							mt.SchemaFromDTO(&UserDto{})
 						})
+				}).
+				Response(http.StatusNotFound, func(r openapi.Response) {
+					r.Description("User not found")
 				})
-		})
-	})
-}
-
-func GetUserById(c *gin.Context) {
-	id := c.Param("id")
-	c.JSON(http.StatusOK, UserDto{
-		ID:   1, // Example ID, could parse from 'id' param
-		Name: "John Doe for ID " + id,
-	})
+		}).
+		Doc()
 }
