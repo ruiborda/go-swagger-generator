@@ -1,15 +1,15 @@
 ---
 sidebar_position: 9
-title: DELETE Endpoints
+title: DELETE Endpoints (v2)
 ---
 
-# Documenting DELETE Endpoints
+# Documenting DELETE Endpoints (v2)
 
-This guide shows how to document DELETE endpoints with go-swagger-generator using practical examples.
+This guide shows how to document DELETE endpoints with Go-Swagger-Generator v2 for OpenAPI 3.0. DELETE requests are used to remove a resource.
 
 ## Basic DELETE Endpoint
 
-Here's a simple example of documenting a DELETE endpoint that removes a resource:
+Here's a simple example of documenting a DELETE endpoint that removes a resource identified by a path parameter.
 
 ```go
 package main
@@ -17,21 +17,28 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
+    // "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime" // Not strictly needed if no response body
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// Swagger documentation for DELETE /user/{username}
-var _ = swagger.Swagger().Path("/user/{username}").
+// Swagger documentation for DELETE /users/{username}
+var _ = swagger.Swagger().Path("/users/{username}"). // Path relative to server URL
     Delete(func(op openapi.Operation) {
-        op.Summary("Delete user").
-            Description("This can only be done by the logged in user.").
-            OperationID("deleteUser").
-            Tag("user").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
+        op.Summary("Delete user by username").
+            Description("This operation deletes a user account.").
+            OperationID("deleteUserV2").
+            Tag("User Operations").
             PathParameter("username", func(p openapi.Parameter) {
-                p.Description("The name that needs to be deleted").Type("string")
+                p.Description("The username of the user to delete").
+                  Required(true).
+                  Schema(func(s openapi.Schema) { // Define schema for path parameter
+                      s.Type("string")
+                  })
+            }).
+            Response(http.StatusNoContent, func(r openapi.Response) { // 204 No Content is typical for successful DELETE
+                r.Description("User deleted successfully")
+                // No response body for 204
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
                 r.Description("Invalid username supplied")
@@ -42,22 +49,17 @@ var _ = swagger.Swagger().Path("/user/{username}").
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func DeleteUser(c *gin.Context) {
-    username := c.Param("username")
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{"message": "User deleted", "username": username})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.DELETE("/user/:username", DeleteUser)
+    // username := c.Param("username")
+    // Implementation to delete user...
+    c.Status(http.StatusNoContent) // Respond with 204 No Content
 }
 ```
 
 ## DELETE with Numeric ID Parameter
 
-This example shows how to document a DELETE endpoint with a numeric ID parameter:
+This example shows a DELETE endpoint using a numeric ID with validation.
 
 ```go
 package main
@@ -65,25 +67,29 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// Swagger documentation for DELETE /store/order/{orderId}
-var _ = swagger.Swagger().Path("/store/order/{orderId}").
+// Swagger documentation for DELETE /store/orders/{orderId}
+var _ = swagger.Swagger().Path("/store/orders/{orderId}").
     Delete(func(op openapi.Operation) {
         op.Summary("Delete purchase order by ID").
-            Description("For valid response try integer IDs with positive integer value. Negative or non-integer values will generate API errors").
-            OperationID("deleteOrder").
-            Tag("store").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
+            Description("Deletes a single purchase order. Ensure the ID is a positive integer.").
+            OperationID("deleteOrderV2").
+            Tag("Store Operations").
             PathParameter("orderId", func(p openapi.Parameter) {
-                p.Description("ID of the order that needs to be deleted").
-                    Type("integer").Format("int64").Minimum(1, false)
+                p.Description("ID of the order to delete").
+                  Required(true).
+                  Schema(func(s openapi.Schema) {
+                      s.Type("integer").Format("int64").Minimum(1, false) // e.g., ID must be >= 1
+                  })
+            }).
+            Response(http.StatusNoContent, func(r openapi.Response) {
+                r.Description("Order deleted successfully")
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid ID supplied")
+                r.Description("Invalid Order ID supplied (e.g., not a positive integer)")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("Order not found")
@@ -91,22 +97,18 @@ var _ = swagger.Swagger().Path("/store/order/{orderId}").
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func DeleteOrder(c *gin.Context) {
-    orderID := c.Param("orderId")
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{"message": "Order deleted", "orderId": orderID})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.DELETE("/store/order/:orderId", DeleteOrder)
+    // orderIDStr := c.Param("orderId")
+    // Convert orderIDStr to int64, validate, and then delete...
+    c.Status(http.StatusNoContent)
 }
 ```
 
-## DELETE with Authentication Header
+## DELETE with Authentication
 
-This example demonstrates how to document a DELETE endpoint that requires an authentication header:
+This example demonstrates a DELETE endpoint that requires authentication (e.g., OAuth2 with specific scopes).
+Assume `OAuth2WriteAccess` security scheme is defined using `doc.ComponentSecurityScheme("OAuth2WriteAccess", ...)`.
 
 ```go
 package main
@@ -114,64 +116,64 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// Swagger documentation for DELETE /pet/{petId}
-var _ = swagger.Swagger().Path("/pet/{petId}").
+// Swagger documentation for DELETE /pets/{petId}
+var _ = swagger.Swagger().Path("/pets/{petId}").
     Delete(func(op openapi.Operation) {
         op.Summary("Deletes a pet").
-            OperationID("deletePet").
-            Tag("pet").
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            HeaderParameter("api_key", func(p openapi.Parameter) {
-                p.Description("API key for authentication").Required(false).Type("string")
+            OperationID("deletePetV2").
+            Tag("Pet Operations").
+            Security(map[string][]string{ // Apply security requirement
+                "OAuth2WriteAccess": {"write:pets"}, // Example: OAuth2 with 'write:pets' scope
             }).
             PathParameter("petId", func(p openapi.Parameter) {
-                p.Description("Pet id to delete").Type("integer").Format("int64")
+                p.Description("Pet ID to delete").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
+            }).
+            // Optionally, an API key could be passed as a header parameter if needed for some legacy systems,
+            // but it's better to rely on standardized security schemes like OAuth2 or Bearer tokens.
+            // Example of a non-standard header parameter if strictly necessary:
+            // op.HeaderParameter("X-Legacy-Api-Key", func(p openapi.Parameter) {
+            //    p.Description("Legacy API key for this operation (if applicable)").Required(false).
+            //      Schema(func(s openapi.Schema){ s.Type("string") })
+            // })
+            Response(http.StatusNoContent, func(r openapi.Response) {
+                r.Description("Pet deleted successfully")
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid ID supplied")
+                r.Description("Invalid Pet ID supplied")
+            }).
+            Response(http.StatusUnauthorized, func(r openapi.Response) {
+                r.Description("Authentication information is missing or invalid")
+            }).
+            Response(http.StatusForbidden, func(r openapi.Response) {
+                r.Description("Authenticated user does not have permission to delete this pet")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("Pet not found")
-            }).
-            Security("petstore_auth", "write:pets", "read:pets")
+            })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func DeletePet(c *gin.Context) {
-    petID := c.Param("petId")
-    apiKey := c.GetHeader("api_key")
-    
-    // Implementation details including auth check
-    
-    c.JSON(http.StatusOK, gin.H{"message": "Pet deleted", "petId": petID})
+    // Auth check by middleware...
+    // Pet deletion logic...
+    c.Status(http.StatusNoContent)
 }
 
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.DELETE("/pet/:petId", DeletePet)
-}
-
-// Security definition (in main.go)
-func setupSecurity(doc openapi.SwaggerDocBuilder) {
-    doc.SecurityDefinition("petstore_auth", func(sd openapi.SecurityScheme) {
-        sd.Type("oauth2").
-            AuthorizationURL("https://petstore.swagger.io/oauth/authorize").
-            Flow("implicit").
-            Scope("read:pets", "read your pets").
-            Scope("write:pets", "modify pets in your account")
-    })
-}
+// In main OpenAPI config:
+// doc.ComponentSecurityScheme("OAuth2WriteAccess", func(ss openapi.SecurityScheme) {
+//    ss.Type("oauth2").Flows(func(f openapi.OAuthFlows) { /* ... */ })
+// })
 ```
 
-## DELETE with Multiple Query Filters
+## Bulk DELETE Endpoint (using Request Body)
 
-Here's how to document a DELETE endpoint that accepts query parameters for filtering resources to delete:
+If you need to delete multiple resources based on criteria or a list of IDs provided in a request body, you would typically use a POST request (as DELETE with a body is sometimes problematic/discouraged, though allowed by HTTP spec). However, if you must use DELETE with a body:
 
 ```go
 package main
@@ -184,150 +186,54 @@ import (
     "net/http"
 )
 
-// Swagger documentation for DELETE /logs
-var _ = swagger.Swagger().Path("/logs").
-    Delete(func(op openapi.Operation) {
-        op.Summary("Delete system logs by criteria").
-            Description("Deletes system logs matching the specified criteria").
-            OperationID("deleteLogs").
-            Tag("system").
-            Produces(mime.ApplicationJSON).
-            QueryParameter("fromDate", func(p openapi.Parameter) {
-                p.Description("Start date (ISO format)").Required(false).Type("string").Format("date")
-            }).
-            QueryParameter("toDate", func(p openapi.Parameter) {
-                p.Description("End date (ISO format)").Required(false).Type("string").Format("date")
-            }).
-            QueryParameter("level", func(p openapi.Parameter) {
-                p.Description("Log level").Required(false).Type("string").
-                    Enum("INFO", "WARNING", "ERROR", "DEBUG")
-            }).
-            QueryParameter("service", func(p openapi.Parameter) {
-                p.Description("Service name").Required(false).Type("string")
+// BulkDeleteRequest DTO
+type BulkDeleteRequest struct {
+    IDs []int64 `json:"ids" yaml:"ids"`
+}
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&BulkDeleteRequest{})
+
+// BulkDeleteResponse DTO
+type BulkDeleteResponse struct {
+    DeletedCount int     `json:"deletedCount" yaml:"deletedCount"`
+    FailedIDs    []int64 `json:"failedIds,omitempty" yaml:"failedIds,omitempty"`
+}
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&BulkDeleteResponse{})
+
+// Swagger documentation for DELETE /products (with request body)
+var _ = swagger.Swagger().Path("/products/bulk-delete"). // Using a more specific path for clarity
+    Post(func(op openapi.Operation) { // Changed to POST for safer body handling, could be DELETE
+        op.Summary("Bulk delete products by IDs").
+            Description("Deletes multiple products based on a list of IDs provided in the request body.").
+            OperationID("bulkDeleteProductsV2").
+            Tag("Product Operations").
+            // Security(...) if needed
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("List of product IDs to delete").Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&BulkDeleteRequest{})
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Logs deleted").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "deletedCount": {Type: "integer", Format: "int32"},
-                        },
-                    })
+                r.Description("Products deleted (or attempted). Check response for details.").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&BulkDeleteResponse{})
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid parameters")
-            }).
-            Response(http.StatusUnauthorized, func(r openapi.Response) {
-                r.Description("Not authorized to delete logs")
-            }).
-            Security("api_key")
+                r.Description("Invalid request body or IDs")
+            })
     }).
     Doc()
 
-// Handler function
-func DeleteLogs(c *gin.Context) {
-    fromDate := c.Query("fromDate")
-    toDate := c.Query("toDate")
-    level := c.Query("level")
-    service := c.Query("service")
-    
-    // Implementation details
-    
-    c.JSON(http.StatusOK, gin.H{"deletedCount": 42})
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.DELETE("/logs", DeleteLogs)
-}
-```
-
-## Bulk DELETE Endpoint
-
-This example shows how to document a DELETE endpoint that deletes multiple resources:
-
-```go
-package main
-
-import (
-    "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
-    "net/http"
-)
-
-// Swagger documentation for DELETE /products
-var _ = swagger.Swagger().Path("/products").
-    Delete(func(op openapi.Operation) {
-        op.Summary("Delete multiple products").
-            Description("Delete multiple products by their IDs").
-            OperationID("bulkDeleteProducts").
-            Tag("products").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Array of product IDs to delete").
-                    Required(true).
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "ids": {
-                                Type: "array",
-                                Items: &openapi_spec.SchemaEntity{
-                                    Type:   "integer",
-                                    Format: "int64",
-                                },
-                            },
-                        },
-                        Required: []string{"ids"},
-                    })
-            }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Products deleted").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "deletedCount": {Type: "integer", Format: "int32"},
-                            "failedIds": {
-                                Type: "array",
-                                Items: &openapi_spec.SchemaEntity{Type: "integer", Format: "int64"},
-                            },
-                        },
-                    })
-            }).
-            Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid request")
-            }).
-            Response(http.StatusUnauthorized, func(r openapi.Response) {
-                r.Description("Authentication required")
-            }).
-            Security("api_key")
-    }).
-    Doc()
-
-// Handler function
+// Handler function (example)
 func BulkDeleteProducts(c *gin.Context) {
-    var request struct {
-        IDs []int64 `json:"ids"`
-    }
-    
-    if err := c.ShouldBindJSON(&request); err != nil {
+    var req BulkDeleteRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
         return
     }
-    
-    // Implementation details
-    
-    c.JSON(http.StatusOK, gin.H{
-        "deletedCount": len(request.IDs),
-        "failedIds": []int64{},
-    })
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.DELETE("/products", BulkDeleteProducts)
+    // Implementation: Iterate req.IDs, attempt deletion, collect results...
+    c.JSON(http.StatusOK, BulkDeleteResponse{DeletedCount: len(req.IDs) - 1, FailedIDs: []int64{req.IDs[0]}} /* example */)
 }
 ```
+**Note:** While HTTP DELETE can have a body, it's not universally supported by all clients/proxies. Using POST for bulk operations with a body is often more robust.
