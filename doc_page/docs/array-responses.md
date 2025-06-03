@@ -1,15 +1,15 @@
 ---
 sidebar_position: 14
-title: Array Responses
+title: Array Responses (v2)
 ---
 
-# Documenting Array Responses
+# Documenting Array Responses (v2)
 
-This guide shows how to document API endpoints that return arrays of objects in go-swagger-generator.
+This guide shows how to document API endpoints that return arrays of objects in Go-Swagger-Generator v2, for OpenAPI 3.0 specifications.
 
 ## Basic Array Response
 
-The most common scenario is an API endpoint that returns an array of objects. Here's how to document this type of response:
+The most common scenario is an API endpoint that returns an array of objects (e.g., a list of users). Here's how to document this type of response using `SchemaFromDTO` with a slice of pointers to your DTO.
 
 ```go
 package main
@@ -24,127 +24,146 @@ import (
 
 // User DTO
 type User struct {
-    ID       int64  `json:"id"`
-    Username string `json:"username"`
-    Email    string `json:"email"`
-    FullName string `json:"fullName"`
-    Active   bool   `json:"active"`
+    ID       int64  `json:"id" yaml:"id"`
+    Username string `json:"username" yaml:"username"`
+    Email    string `json:"email" yaml:"email"`
+    FullName string `json:"fullName,omitempty" yaml:"fullName,omitempty"`
+    Active   bool   `json:"active" yaml:"active"`
 }
 
+// Ensure User DTO is registered as a component schema for referencing
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&User{})
+
 // Swagger documentation for GET /users
-var _ = swagger.Swagger().Path("/users").
+var _ = swagger.Swagger().Path("/users"). // Path relative to server URL
     Get(func(op openapi.Operation) {
         op.Summary("List all users").
-            Description("Returns an array of all registered users").
-            OperationID("listUsers").
-            Tag("users").
-            Produces(mime.ApplicationJSON).
+            Description("Returns an array of all registered users.").
+            OperationID("listAllUsersV2").
+            Tag("User Operations").
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Successful operation").
-                    // Use the array format with pointer to support typed arrays
-                    SchemaFromDTO(&[]*User{})
+                r.Description("Successful operation - list of users returned").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      // Use SchemaFromDTO with a pointer to a slice of DTO pointers for an array response.
+                      // This correctly generates an array schema with items referencing the User schema.
+                      mt.SchemaFromDTO(&[]*User{}) 
+                  })
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func GetAllUsers(c *gin.Context) {
-    // Return a sample array of users
     users := []*User{
-        {
-            ID:       1,
-            Username: "user1",
-            Email:    "user1@example.com",
-            FullName: "User One",
-            Active:   true,
-        },
-        {
-            ID:       2,
-            Username: "user2",
-            Email:    "user2@example.com",
-            FullName: "User Two",
-            Active:   true,
-        },
+        {ID: 1, Username: "alice", Email: "alice@example.com", FullName: "Alice Wonderland", Active: true},
+        {ID: 2, Username: "bob", Email: "bob@example.com", FullName: "Bob The Builder", Active: true},
     }
-    
     c.JSON(http.StatusOK, users)
 }
+
+// Minimal main and setup for context (example)
+// func main() {
+//     router := gin.Default()
+//     doc := swagger.Swagger()
+//     _, _ = doc.ComponentSchemaFromDTO(&User{}) // Register DTO
+//     doc.Server("http://localhost:8080/v1", func(s openapi.Server){s.Description("Dev")})
+//     // Middleware, path registration, etc.
+//     router.GET("/v1/users", GetAllUsers)
+//     router.Run(":8080")
+// }
 ```
 
-## Important Points to Remember
+## Important Points for Array Responses
 
-When documenting array responses, there are a few key things to keep in mind:
+1.  **Correct DTO Usage**: Pass a pointer to a slice of pointers to your DTO type to `SchemaFromDTO()`. That is, `&[]*YourDtoType{}`.
+    *   `&`: Address of the (empty) slice.
+    *   `[]`: Denotes a slice.
+    *   `*YourDtoType`: The elements of the slice are pointers to `YourDtoType` instances.
+    This structure helps the generator understand it's an array of a specific, referenced schema.
 
-1. **Use the correct format**: Pass `&[]*YourType{}` to `SchemaFromDTO()` to properly document an array of objects.
+2.  **Component Schema Registration**: It's good practice to register your DTO (e.g., `User`) as a component schema using `doc.ComponentSchemaFromDTO(&User{})` or simply `doc.SchemaFromDTO(&User{})` once in your setup. This ensures it's defined in `#/components/schemas/User` and can be referenced cleanly by the array schema.
 
-2. **Pointer syntax**: Notice that we use a double pointer syntax:
-   - `&` - A pointer to the slice
-   - `[]` - The slice itself
-   - `*YourType` - Pointers to the elements in the slice
+3.  **OpenAPI 3.0 Output**: This method will generate an OpenAPI 3.0 specification where the response schema is an array, and its `items` property correctly references the schema of `YourDtoType` (e.g., `#/components/schemas/User`).
 
-3. **Results in Swagger UI**: This will generate proper OpenAPI documentation showing that the endpoint returns an array of objects with the schema defined by your struct.
+## Alternative: Manual Array Schema Definition
 
-## Understanding the Internal Implementation
-
-Behind the scenes, the `SchemaFromDTO()` method detects when you pass it a pointer to a slice of object pointers and automatically:
-
-1. Creates a schema for the object type if it doesn't already exist in the definitions
-2. Creates an array schema with items referencing the object schema
-3. Sets the response schema to the array schema
-
-## Alternative: Manual Schema Definition
-
-If you prefer to define the schema manually, you can also use this approach:
+If you prefer or need more control, you can define the array schema manually within the response content.
 
 ```go
+package main
+
 import (
+    // ... other imports
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// First, define the User model
-_, _ = doc.DefinitionFromDTO(&User{})
+// User DTO (as defined before)
+// type User struct { ... }
 
-// Then reference it in an array schema
-Response(http.StatusOK, func(r openapi.Response) {
-    r.Description("Array of user objects").
-        Schema(openapi_spec.SchemaEntity{
-            Type:  "array",
-            Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/User"},
-        })
-})
+// func main() {
+//     doc := swagger.Swagger()
+//     // First, ensure the User model is registered as a component schema
+//     _, _ = doc.ComponentSchemaFromDTO(&User{})
+
+//     // Then, manually define the array response
+//     var _ = doc.Path("/users-manual-array").
+//         Get(func(op openapi.Operation) {
+//             op.Summary("List users (manual array schema)").Tag("User Operations").
+//             Response(http.StatusOK, func(r openapi.Response) {
+//                 r.Description("Array of user objects").
+//                   Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+//                       mt.Schema(func(s openapi.Schema) {
+//                           s.Type("array").
+//                             Items(openapi.S().Ref("#/components/schemas/User")) // Reference the User schema
+//                       })
+//                   })
+//             })
+//         }).Doc()
+//     // ... rest of setup ...
+// }
 ```
 
-## Nested Arrays
+## Nested Arrays in DTOs
 
-When dealing with more complex structures that contain arrays, define your structs as normal:
+If your DTO itself contains fields that are arrays (e.g., a `User` DTO with a slice of `Role` DTOs), `SchemaFromDTO` will handle this automatically when you register or use the parent DTO.
 
 ```go
-// Department with employees
-type Department struct {
-    ID        int64    `json:"id"`
-    Name      string   `json:"name"`
-    Employees []*User  `json:"employees"`
+// Role DTO
+type Role struct {
+    ID   int    `json:"id" yaml:"id"`
+    Name string `json:"name" yaml:"name"`
 }
 
-// Then use it in your response
-Response(http.StatusOK, func(r openapi.Response) {
-    r.Description("Department with employee list").
-        SchemaFromDTO(&Department{})
-})
+// UserWithRoles DTO
+type UserWithRoles struct {
+    ID    int64   `json:"id" yaml:"id"`
+    Name  string  `json:"name" yaml:"name"`
+    Roles []*Role `json:"roles,omitempty" yaml:"roles,omitempty"` // Nested array of Role DTOs
+}
+
+// In your OpenAPI setup:
+// doc := swagger.Swagger()
+// _, _ = doc.ComponentSchemaFromDTO(&Role{})
+// _, _ = doc.ComponentSchemaFromDTO(&UserWithRoles{})
+
+// When used in a response:
+// Response(http.StatusOK, func(r openapi.Response) {
+//    r.Description("User with roles").
+//      Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+//          mt.SchemaFromDTO(&UserWithRoles{}) // Correctly documents UserWithRoles including the Roles array
+//      })
+// })
+
+// Or an array of UserWithRoles:
+// Response(http.StatusOK, func(r openapi.Response) {
+//    r.Description("List of users with roles").
+//      Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+//          mt.SchemaFromDTO(&[]*UserWithRoles{}) 
+//      })
+// })
 ```
 
-The nested array will be correctly documented in the OpenAPI specification.
-
-## Working Example
-
-For a complete working example, check the array_response example in the examples directory:
-
-```bash
-cd examples/array_response
-go run main.go
-```
-
-This example demonstrates an API that returns both single objects and arrays of objects with proper OpenAPI documentation.
+Go Swagger Generator v2 will correctly resolve nested DTOs and their array fields into the OpenAPI 3.0 specification. Remember to register all involved DTOs (like `Role` and `UserWithRoles`) as component schemas.
