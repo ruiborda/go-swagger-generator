@@ -20,7 +20,7 @@ function HomepageHeader() {
         <div className="padding-top--md" style={{maxWidth: 650, margin: '0 auto', textAlign: 'left'}}>
           <CodeBlock language="bash" className={styles.codePreview}>
             {`# Instala Go Swagger Generator v2
- go get github.com/ruiborda/go-swagger-generator/v2`}
+ go get -u github.com/ruiborda/go-swagger-generator/v2`}
           </CodeBlock>
         </div>
         <div className="padding-top--md" style={{maxWidth: 650, margin: '0 auto', textAlign: 'left'}}>
