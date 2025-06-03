@@ -1,8 +1,8 @@
 package swagger
 
 import (
-	openapi2 "github.com/ruiborda/go-swagger-generator/src/openapi"
-	entity2 "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	openapi2 "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+	entity2 "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
 )
 
 type InfoBuilder struct {
