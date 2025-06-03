@@ -17,7 +17,7 @@ package main
 import (
     "os"
     "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/middleware"
+    "github.com/ruiborda/go-swagger-generator/v2/src/middleware"
     // ... other necessary imports
 )
 
