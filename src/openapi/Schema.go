@@ -1,7 +1,7 @@
 package openapi
 
 import (
-	entity "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	entity "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
 )
 
 type Schema interface {
