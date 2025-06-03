@@ -16,7 +16,7 @@ const FeatureList: FeatureItem[] = [
     description: (
       <>
         Quickly integrate Go Swagger Generator into new or existing Gin projects.
-        Complete documentation with just a few lines of code.
+        Complete OpenAPI 3.0 documentation with just a few lines of code.
       </>
     ),
   },
@@ -26,16 +26,16 @@ const FeatureList: FeatureItem[] = [
     description: (
       <>
         An elegant and easy-to-use Go API that allows you to document your endpoints
-        clearly with a fluent, chainable syntax.
+        clearly with a fluent, chainable syntax for OpenAPI 3.0.
       </>
     ),
   },
   {
-    title: 'OpenAPI Compatible',
+    title: 'OpenAPI 3.0 Compatible',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Generate documentation compatible with the OpenAPI/Swagger standard that can
+        Generate documentation compatible with the OpenAPI 3.0 standard that can
         be visualized with Swagger UI integrated directly into your application.
       </>
     ),
