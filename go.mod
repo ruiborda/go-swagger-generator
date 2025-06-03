@@ -1,4 +1,4 @@
-module github.com/ruiborda/go-swagger-generator
+module github.com/ruiborda/go-swagger-generator/v2
 
 go 1.23.7
 
