@@ -3,33 +3,33 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/ruiborda/go-swagger-generator.svg)](https://pkg.go.dev/github.com/ruiborda/go-swagger-generator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Go Swagger Generator v2 es una librería que facilita la generación de documentación **OpenAPI 3.0** directamente desde tu código Go con una API fluida y elegante.
+Go Swagger Generator v2 is a library that facilitates the generation of **OpenAPI 3.0** documentation directly from your Go code with a fluent and elegant API.
 
-## Características
+## Features
 
-- **API fluida y elegante** - Sintaxis encadenada que hace que la documentación OpenAPI 3.0 sea fácil de leer y escribir.
-- **Integración simple con Gin** - Funciona con el popular framework web Gin sin complicaciones.
-- **Sin anotaciones necesarias** - No requiere comentarios especiales en tu código.
-- **Swagger UI incorporado** - Incluye Swagger UI para explorar tu API de forma interactiva, mostrando tu especificación OpenAPI 3.0.
-- **Compatible con OpenAPI 3.0** - Genera documentación siguiendo la especificación OpenAPI 3.0.
+- **Fluent and elegant API** - Chained syntax that makes OpenAPI 3.0 documentation easy to read and write.
+- **Simple integration with Gin** - Works with the popular Gin web framework without complications.
+- **No annotations required** - Does not require special comments in your code.
+- **Built-in Swagger UI** - Includes Swagger UI to explore your API interactively, displaying your OpenAPI 3.0 specification.
+- **Compatible with OpenAPI 3.0** - Generates documentation following the OpenAPI 3.0 specification.
 
-## Instalación
+## Installation
 
 ```bash
-# Instala Go Swagger Generator v2
+# Install Go Swagger Generator v2
  go get -u github.com/ruiborda/go-swagger-generator/v2
 ```
 
-Si usas Gin:
+If you use Gin:
 
 ```bash
-# Instala Gin Framework
+# Install Gin Framework
  go get github.com/gin-gonic/gin
 ```
 
-## Inicio Rápido (v2)
+## Quick Start (v2)
 
-Aquí tienes un ejemplo simple mostrando cómo integrar Go Swagger Generator v2 con Gin para producir documentación OpenAPI 3.0:
+Here's a simple example showing how to integrate Go Swagger Generator v2 with Gin to produce OpenAPI 3.0 documentation:
 
 ```go
 package main
@@ -45,7 +45,7 @@ import (
 	"github.com/ruiborda/go-swagger-generator/v2/src/swagger"
 )
 
-// UserDto representa el DTO de usuario.
+// UserDto represents the user DTO.
 type UserDto struct {
 	ID   int    `json:"id" yaml:"id"`
 	Name string `json:"name" yaml:"name"`
@@ -54,19 +54,19 @@ type UserDto struct {
 func main() {
 	router := gin.Default()
 
-	// Configura la documentación OpenAPI 3.0
+	// Configure OpenAPI 3.0 documentation
 	ConfigureOpenAPI(router)
 
-	// Define la ruta de la API. El prefijo /v1 debe coincidir con la URL del servidor en la config OpenAPI.
+	// Define API route. The /v1 prefix should match the server URL in the OpenAPI config.
 	router.GET("/v1/users/:id", GetUserByIdHandler)
 
-	fmt.Println("Servidor corriendo en http://localhost:8080")
-	fmt.Println("Swagger UI disponible en http://localhost:8080/")
-	fmt.Println("OpenAPI 3.0 JSON disponible en http://localhost:8080/openapi.json")
+	fmt.Println("Server running at http://localhost:8080")
+	fmt.Println("Swagger UI available at http://localhost:8080/")
+	fmt.Println("OpenAPI 3.0 JSON available at http://localhost:8080/openapi.json")
 	_ = router.Run(":8080")
 }
 
-// Handler para obtener usuario por ID.
+// Handler to get user by ID.
 func GetUserByIdHandler(c *gin.Context) {
 	idStr := c.Param("id")
 	c.JSON(http.StatusOK, UserDto{
@@ -75,7 +75,7 @@ func GetUserByIdHandler(c *gin.Context) {
 	})
 }
 
-// Configura la documentación OpenAPI 3.0.
+// Configure OpenAPI 3.0 documentation.
 func ConfigureOpenAPI(router *gin.Engine) {
 	router.Use(middleware.SwaggerGin(middleware.SwaggerConfig{
 		Enabled:  true,
@@ -124,9 +124,9 @@ func ConfigureOpenAPI(router *gin.Engine) {
 }
 ```
 
-## Guía de Uso (v2 con OpenAPI 3.0)
+## Usage Guide (v2 with OpenAPI 3.0)
 
-### 1. Configura OpenAPI en tu aplicación Gin
+### 1. Configure OpenAPI in your Gin application
 
 ```go
 func ConfigureOpenAPI(router *gin.Engine) {
@@ -148,9 +148,9 @@ func ConfigureOpenAPI(router *gin.Engine) {
 }
 ```
 
-### 2. Define tus modelos (DTOs)
+### 2. Define your models (DTOs)
 
-Agrega etiquetas `yaml` si planeas soportar representaciones YAML, consistente con los ejemplos OpenAPI.
+Add `yaml` tags if you plan to support YAML representations, consistent with OpenAPI examples.
 
 ```go
 type UserDto struct {
@@ -158,11 +158,11 @@ type UserDto struct {
 	Name string `json:"name" yaml:"name"`
 }
 
-// Registra el DTO con OpenAPI components:
+// Register the DTO with OpenAPI components:
 // _, _ = swagger.Swagger().ComponentSchemaFromDTO(&UserDto{})
 ```
 
-### 3. Documenta tus endpoints (estilo OpenAPI 3.0)
+### 3. Document your endpoints (OpenAPI 3.0 style)
 
 ```go
 var _ = swagger.Swagger().Path("/items/{itemId}")
@@ -190,7 +190,7 @@ var _ = swagger.Swagger().Path("/items/{itemId}")
 	Doc()
 ```
 
-### 4. Implementa tus funciones handler
+### 4. Implement your handler functions
 
 ```go
 func GetItemById(c *gin.Context) {
@@ -201,49 +201,49 @@ func GetItemById(c *gin.Context) {
 }
 ```
 
-## Documentación (v2)
+## Documentation (v2)
 
-Consulta el directorio `/doc_page` para documentación detallada sobre todas las características de Go Swagger Generator v2:
+Check the `/doc_page` directory for detailed documentation on all features of Go Swagger Generator v2:
 
-- [Introducción (v2)](/doc_page/docs/intro.md)
-- [Inicio Rápido (v2)](/doc_page/docs/quick-start.md)
-- [Definición de Modelos (v2)](/doc_page/docs/defining-models.md)
-- [Parámetros de Ruta (v2)](/doc_page/docs/path-parameters.md)
-- [Parámetros de Consulta (v2)](/doc_page/docs/query-parameters.md)
-- [Cuerpos de Petición (v2)](/doc_page/docs/request-bodies.md)
-- [Respuestas (v2)](/doc_page/docs/responses.md)
-- [Esquemas de Seguridad (v2)](/doc_page/docs/security.md)
-- [Respuestas de Array (v2)](/doc_page/docs/array-responses.md)
-- [Configuración de Producción (v2)](/doc_page/docs/production.md)
-- Y más...
+- [Introduction (v2)](/doc_page/docs/intro.md)
+- [Quick Start (v2)](/doc_page/docs/quick-start.md)
+- [Defining Models (v2)](/doc_page/docs/defining-models.md)
+- [Path Parameters (v2)](/doc_page/docs/path-parameters.md)
+- [Query Parameters (v2)](/doc_page/docs/query-parameters.md)
+- [Request Bodies (v2)](/doc_page/docs/request-bodies.md)
+- [Responses (v2)](/doc_page/docs/responses.md)
+- [Security Schemes (v2)](/doc_page/docs/security.md)
+- [Array Responses (v2)](/doc_page/docs/array-responses.md)
+- [Production Configuration (v2)](/doc_page/docs/production.md)
+- And more...
 
-## Ejemplos (v2)
+## Examples (v2)
 
-Consulta el directorio `/examples` para ejemplos completos actualizados para v2:
+Check the `/examples` directory for complete examples updated for v2:
 
-- [Ejemplo Básico (v2)](/examples/basic/main.go)
+- [Basic Example (v2)](/examples/basic/main.go)
 - [Pet Store (v2)](/examples/pet_store/main.go)
-- [Ejemplo de Respuesta Array (v2)](/examples/array_response/main.go)
-- [Ejemplo JWT Bearer Auth (v2)](/examples/jwt_bearer/main.go)
+- [Array Response Example (v2)](/examples/array_response/main.go)
+- [JWT Bearer Auth Example (v2)](/examples/jwt_bearer/main.go)
 
-## Probar tu API documentada
+## Testing your documented API
 
-1. Inicia tu aplicación.
-2. Abre tu navegador en la ruta configurada para la UI (por defecto: `http://localhost:TU_PUERTO/`, por ejemplo, http://localhost:8080/).
-3. Deberías ver la interfaz Swagger UI mostrando tu API documentada con OpenAPI 3.0.
-4. La especificación OpenAPI 3.0 JSON estará disponible en el `JSONPath` configurado (por ejemplo, `/openapi.json`).
-5. Explora los endpoints, revisa los parámetros requeridos y prueba las llamadas directamente desde la interfaz.
+1. Start your application.
+2. Open your browser at the configured UI path (default: `http://localhost:YOUR_PORT/`, for example, http://localhost:8080/).
+3. You should see the Swagger UI interface displaying your API documented with OpenAPI 3.0.
+4. The OpenAPI 3.0 JSON specification will be available at the configured `JSONPath` (for example, `/openapi.json`).
+5. Explore the endpoints, review the required parameters, and test the calls directly from the interface.
 
-## Licencia
+## License
 
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contribuir
+## Contributing
 
-¡Las contribuciones son bienvenidas! No dudes en abrir un issue o enviar un pull request.
+Contributions are welcome! Feel free to open an issue or submit a pull request.
 
-1. Haz fork del repositorio.
-2. Crea tu rama de feature (`git checkout -b feature/mi-feature`).
-3. Haz commit de tus cambios (`git commit -m 'Agrega una nueva feature'`).
-4. Haz push a la rama (`git push origin feature/mi-feature`).
-5. Abre un Pull Request.
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/my-feature`).
+3. Commit your changes (`git commit -m 'Add a new feature'`).
+4. Push to the branch (`git push origin feature/my-feature`).
+5. Open a Pull Request.
