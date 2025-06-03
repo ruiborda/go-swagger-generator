@@ -25,36 +25,49 @@ function HomepageHeader() {
         </div>
         <div className="padding-top--md" style={{maxWidth: 650, margin: '0 auto', textAlign: 'left'}}>
           <CodeBlock language="go" className={styles.codePreview}>
-            {`// OpenAPI 3.0 documentation for a Go API (using Go Swagger Generator v2)
-var _ = swagger.Swagger().Path("/users/{id}"). // Path relative to server base URL
+            {`// UserDto represents the data transfer object for a user.
+type UserDto struct {
+    ID   int    ${'`'}json:"id" yaml:"id"${'`'}
+    Name string ${'`'}json:"name" yaml:"name"${'`'}
+}
+
+// GetUserByIdHandler is the Gin handler for retrieving a user.
+func GetUserByIdHandler(c *gin.Context) {
+    idStr := c.Param("id")
+    c.JSON(http.StatusOK, UserDto{
+        ID:   1, // Example ID
+        Name: "John Doe (User " + idStr + ")",
+    })
+}
+
+// --- In your ConfigureOpenAPI function (see Quick Start for full example) ---
+// doc := swagger.Swagger() // Get OpenAPI builder instance
+// _, _ = doc.SchemaFromDTO(&UserDto{}) // Register DTO
+
+// Document the /users/{id} GET endpoint (relative to server URL)
+var _ = doc.Path("/users/{id}").
     Get(func(op openapi.Operation) {
         op.Summary("Find user by ID").
-            Tag("UserController").
-            OperationID("getUserByIdV2").
+            Tag("User Management").
+            OperationID("getUserById").
             PathParameter("id", func(p openapi.Parameter) {
-                p.Required(true).
-                  Description("User ID").
-                  Schema(func(s openapi.Schema) {
-                      s.Type("integer").Format("int64")
-                  })
+                p.Description("ID of the user to retrieve").
+                    Required(true).
+                    Schema(func(s openapi.Schema) {
+                        s.Type("integer").Format("int64")
+                    })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").
+                r.Description("Successful operation - user details returned").
                     Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
-                        mt.SchemaFromDTO(UserDto{}) // Assumes UserDto is defined
+                        mt.SchemaFromDTO(&UserDto{})
                     })
+            }).
+            Response(http.StatusNotFound, func(r openapi.Response) {
+                r.Description("User not found")
             })
     }).
-    Doc()
-
-// Gin handler
-func GetUserById(c *gin.Context) {
-	id := c.Param("id")
-	c.JSON(http.StatusOK, UserDto{
-		ID:   id, // Simplified, parse 'id' to appropriate type
-		Name: "John Doe",
-	})
-}`}
+    Doc()`}
           </CodeBlock>
         </div>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
@@ -85,24 +98,29 @@ function QuickStartSection() {
             
             <div className="padding-top--md" style={{maxWidth: 700, margin: '0 auto'}}>
               <CodeBlock language="go" className={styles.codePreview}>
-{`// Define an endpoint with its OpenAPI 3.0 documentation
-var _ = swagger.Swagger().Path("/users/{id}"). // Path relative to server base URL
+{`// Document the /users/{id} GET endpoint.
+// The path "/users/{id}" is relative to the server URL (e.g., http://localhost:8080/v1/users/{id}).
+// Assumes 'doc' is your swagger.Swagger() instance and UserDto is defined.
+var _ = doc.Path("/users/{id}").
     Get(func(op openapi.Operation) {
         op.Summary("Find user by ID").
-            Tag("UserController").
-            OperationID("getUserByIdV2Example").
+            Tag("User Management").
+            OperationID("getUserById").
             PathParameter("id", func(p openapi.Parameter) {
-                p.Required(true).
-                  Description("User ID").
-                  Schema(func(s openapi.Schema) {
-                      s.Type("integer").Format("int64")
-                  })
+                p.Description("ID of the user to retrieve").
+                    Required(true).
+                    Schema(func(s openapi.Schema) {
+                        s.Type("integer").Format("int64")
+                    })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").
+                r.Description("Successful operation - user details returned").
                     Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
-                        mt.SchemaFromDTO(UserDto{}) // Assumes UserDto is defined
+                        mt.SchemaFromDTO(&UserDto{}) // Assumes UserDto is defined
                     })
+            }).
+            Response(http.StatusNotFound, func(r openapi.Response) {
+                r.Description("User not found")
             })
     }).
     Doc()`}
