@@ -1,15 +1,15 @@
 ---
 sidebar_position: 8
-title: PUT Endpoints
+title: PUT Endpoints (v2)
 ---
 
-# Documenting PUT Endpoints
+# Documenting PUT Endpoints (v2)
 
-This guide shows how to document PUT endpoints with go-swagger-generator using practical examples.
+This guide shows how to document PUT endpoints with Go-Swagger-Generator v2 for OpenAPI 3.0. PUT requests are typically used to update an existing resource entirely or create it if it doesn't exist (though idempotency is key).
 
-## Basic PUT Endpoint
+## Basic PUT Endpoint (Full Resource Update)
 
-Here's a simple example of documenting a PUT endpoint that updates a resource:
+Here's an example of documenting a PUT endpoint that updates an existing resource. The request body usually contains the complete representation of the resource.
 
 ```go
 package main
@@ -24,133 +24,74 @@ import (
 
 // Pet DTO
 type Pet struct {
-    ID        int64  `json:"id,omitempty"`
-    Name      string `json:"name"`
-    PhotoUrls []string `json:"photoUrls"`
-    Status    string `json:"status,omitempty"` // available, pending, sold
+    ID        int64    `json:"id" yaml:"id"` // ID should be part of the DTO for updates
+    Name      string   `json:"name" yaml:"name"`
+    PhotoUrls []string `json:"photoUrls" yaml:"photoUrls"`
+    Status    string   `json:"status,omitempty" yaml:"status,omitempty"` // e.g., available, pending, sold
 }
 
-// Swagger documentation for PUT /pet
-var _ = swagger.Swagger().Path("/pet").
+// Ensure Pet DTO is registered: _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Pet{})
+
+// Swagger documentation for PUT /pets/{petId}
+// Assumes the resource is identified by petId in the path.
+var _ = swagger.Swagger().Path("/pets/{petId}"). // Path relative to server URL
     Put(func(op openapi.Operation) {
         op.Summary("Update an existing pet").
-            OperationID("updatePet").
-            Tag("pet").
-            Consumes(string(mime.ApplicationJSON), string(mime.ApplicationXML)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Pet object that needs to be added to the store").
-                    Required(true).
-                    SchemaFromDTO(&Pet{})
+            OperationID("updatePetV2").
+            Tag("Pet Operations").
+            PathParameter("petId", func(p openapi.Parameter) {
+                p.Description("ID of pet to update").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
+            }).
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Pet object that needs to be updated in the store. ID in body should match path or be omitted.").
+                  Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Pet{}) // Full Pet object for update
+                  })
+                // Optionally add other consumable types e.g. XML
+                // rb.Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+                //    mt.SchemaFromDTO(&Pet{})
+                // })
+            }).
+            Response(http.StatusOK, func(r openapi.Response) {
+                r.Description("Pet updated successfully").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Pet{}) // Return the updated pet
+                  })
+            }).
+            Response(http.StatusCreated, func(r openapi.Response) {
+                r.Description("Pet created successfully (if PUT allows creation)").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Pet{}) // Return the created pet
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid ID supplied")
+                r.Description("Invalid ID supplied or invalid Pet data")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("Pet not found")
-            }).
-            Response(http.StatusMethodNotAllowed, func(r openapi.Response) {
-                r.Description("Validation exception")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func UpdatePet(c *gin.Context) {
+    // petID := c.Param("petId")
     var pet Pet
     if err := c.ShouldBindJSON(&pet); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID supplied"})
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Pet data"})
         return
     }
-    
-    // Implementation details (check if pet exists, etc.)
-    
-    c.JSON(http.StatusOK, pet)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.PUT("/pet", UpdatePet)
-}
-```
-
-## PUT with Path Parameters
-
-This example shows how to document a PUT endpoint that updates a resource identified by a path parameter:
-
-```go
-package main
-
-import (
-    "github.com/gin-gonic/gin"
-    "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
-    "github.com/ruiborda/go-swagger-generator/src/swagger"
-    "net/http"
-)
-
-// User DTO
-type User struct {
-    ID       int64  `json:"id,omitempty"`
-    Username string `json:"username,omitempty"`
-    FirstName string `json:"firstName,omitempty"`
-    LastName  string `json:"lastName,omitempty"`
-    Email    string `json:"email,omitempty"`
-    Password string `json:"password,omitempty"`
-    Phone    string `json:"phone,omitempty"`
-}
-
-// Swagger documentation for PUT /user/{username}
-var _ = swagger.Swagger().Path("/user/{username}").
-    Put(func(op openapi.Operation) {
-        op.Summary("Updated user").
-            Description("This can only be done by the logged in user.").
-            OperationID("updateUser").
-            Tag("user").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON, mime.ApplicationXML).
-            PathParameter("username", func(p openapi.Parameter) {
-                p.Description("name that need to be updated").Type("string")
-            }).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Updated user object").Required(true).SchemaFromDTO(&User{})
-            }).
-            Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid user supplied")
-            }).
-            Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("User not found")
-            })
-    }).
-    Doc()
-
-// Handler function
-func UpdateUser(c *gin.Context) {
-    username := c.Param("username")
-    var user User
-    
-    if err := c.ShouldBindJSON(&user); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user supplied"})
-        return
-    }
-    
-    // Implementation details
-    c.JSON(http.StatusOK, gin.H{
-        "message": "User updated",
-        "username": username,
-        "user": user,
-    })
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.PUT("/user/:username", UpdateUser)
+    // Implementation: find pet by petID, update its fields with data from 'pet' DTO.
+    // Ensure pet.ID from body matches petID from path, or handle appropriately.
+    c.JSON(http.StatusOK, pet) // Return updated pet
 }
 ```
 
 ## PUT with Validation Response Codes
 
-This example demonstrates how to document a PUT endpoint with multiple response codes for different validation scenarios:
+This example demonstrates documenting a PUT endpoint with multiple response codes for different validation scenarios and outcomes.
 
 ```go
 package main
@@ -165,73 +106,77 @@ import (
 
 // Product DTO
 type Product struct {
-    ID          int64   `json:"id,omitempty"`
-    Name        string  `json:"name"`
-    Description string  `json:"description,omitempty"`
-    Price       float64 `json:"price"`
-    Category    string  `json:"category"`
-    InStock     bool    `json:"inStock"`
+    ID          int64   `json:"id,omitempty" yaml:"id,omitempty"`
+    Name        string  `json:"name" yaml:"name"`
+    Description string  `json:"description,omitempty" yaml:"description,omitempty"`
+    Price       float64 `json:"price" yaml:"price"`
+    Category    string  `json:"category" yaml:"category"`
+    InStock     bool    `json:"inStock" yaml:"inStock"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Product{})
 
 // Swagger documentation for PUT /products/{productId}
 var _ = swagger.Swagger().Path("/products/{productId}").
     Put(func(op openapi.Operation) {
         op.Summary("Update a product").
-            Description("Updates an existing product in the catalog").
-            OperationID("updateProduct").
-            Tag("products").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON).
+            Description("Updates an existing product in the catalog or creates it if allowed by implementation.").
+            OperationID("updateProductV2").
+            Tag("Product Operations").
             PathParameter("productId", func(p openapi.Parameter) {
-                p.Description("ID of the product to update").Type("integer").Format("int64")
+                p.Description("ID of the product to update or create").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
             }).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Product information").Required(true).SchemaFromDTO(&Product{})
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Product information").Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Product{})
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Product updated successfully").SchemaFromDTO(&Product{})
+                r.Description("Product updated successfully").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Product{})
+                  })
+            }).
+            Response(http.StatusCreated, func(r openapi.Response) {
+                r.Description("Product created successfully (if PUT allows creation)").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Product{})
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid product data")
+                r.Description("Invalid product data supplied")
             }).
             Response(http.StatusUnauthorized, func(r openapi.Response) {
-                r.Description("Not authorized to update products")
+                r.Description("Authentication required to update products")
             }).
             Response(http.StatusForbidden, func(r openapi.Response) {
-                r.Description("Permission denied")
+                r.Description("Authorization failed (e.g., insufficient permissions)")
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("Product not found")
-            }).
-            Response(http.StatusConflict, func(r openapi.Response) {
-                r.Description("Product already exists with conflicting information")
+                r.Description("Product not found (if PUT only updates existing and it's missing)")
             })
+            // Potentially StatusConflict (409) if update violates a unique constraint.
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func UpdateProduct(c *gin.Context) {
-    productID := c.Param("productId")
+    // productID := c.Param("productId")
     var product Product
-    
     if err := c.ShouldBindJSON(&product); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product data"})
         return
     }
-    
-    // Implementation details
-    c.JSON(http.StatusOK, product)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.PUT("/products/:productId", UpdateProduct)
+    // Implementation: Check auth, find product, update, or create...
+    c.JSON(http.StatusOK, product) // Or http.StatusCreated if new
 }
 ```
 
 ## PUT with Security Requirements
 
-Here's how to document a PUT endpoint that requires authentication:
+Here's how to document a PUT endpoint that requires authentication (e.g., an API key or OAuth2 token).
+Assume `ApiKeyAuth` is defined using `doc.ComponentSecurityScheme("ApiKeyAuth", ...)`.
 
 ```go
 package main
@@ -246,66 +191,65 @@ import (
 
 // Settings DTO
 type Settings struct {
-    NotificationEnabled bool   `json:"notificationEnabled"`
-    Theme               string `json:"theme"`
-    Language            string `json:"language"`
+    NotificationEnabled bool   `json:"notificationEnabled" yaml:"notificationEnabled"`
+    Theme               string `json:"theme" yaml:"theme"`
+    Language            string `json:"language" yaml:"language"`
 }
+// _, _ = swagger.Swagger().ComponentSecuritySchemeFromDTO(&Settings{})
 
 // Swagger documentation for PUT /users/{userId}/settings
 var _ = swagger.Swagger().Path("/users/{userId}/settings").
     Put(func(op openapi.Operation) {
         op.Summary("Update user settings").
             Description("Update settings for a specific user. Requires authentication.").
-            OperationID("updateUserSettings").
-            Tag("user").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON).
-            PathParameter("userId", func(p openapi.Parameter) {
-                p.Description("ID of the user whose settings to update").Type("integer").Format("int64")
+            OperationID("updateUserSettingsV2").
+            Tag("User Operations").
+            Security(map[string][]string{ // Apply security requirement
+                "ApiKeyAuth": {}, // Assuming ApiKeyAuth is defined
             }).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("Settings object").Required(true).SchemaFromDTO(&Settings{})
+            PathParameter("userId", func(p openapi.Parameter) {
+                p.Description("ID of the user whose settings to update").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
+            }).
+            RequestBody(func(rb openapi.RequestBody) {
+                rb.Description("Settings object").Required(true).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Settings{})
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Settings updated successfully").SchemaFromDTO(&Settings{})
+                r.Description("Settings updated successfully").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.SchemaFromDTO(&Settings{})
+                  })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
                 r.Description("Invalid settings data")
             }).
             Response(http.StatusUnauthorized, func(r openapi.Response) {
-                r.Description("Not authenticated")
+                r.Description("Authentication credentials missing or invalid")
             }).
             Response(http.StatusForbidden, func(r openapi.Response) {
                 r.Description("Not authorized to update this user's settings")
-            }).
-            Security("api_key") // Requires API key authentication
+            })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func UpdateUserSettings(c *gin.Context) {
-    userID := c.Param("userId")
+    // userID := c.Param("userId")
+    // Auth check would be done by middleware ideally
     var settings Settings
-    
     if err := c.ShouldBindJSON(&settings); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid settings data"})
         return
     }
-    
-    // Implementation details including auth check
-    
+    // Implementation...
     c.JSON(http.StatusOK, settings)
 }
 
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.PUT("/users/:userId/settings", UpdateUserSettings)
-}
-
-// Security definition (in main.go)
-func setupSecurity(doc openapi.SwaggerDocBuilder) {
-    doc.SecurityDefinition("api_key", func(sd openapi.SecurityScheme) {
-        sd.Type("apiKey").Name("api_key").In("header")
-    })
-}
+// In main OpenAPI config:
+// doc.ComponentSecurityScheme("ApiKeyAuth", func(ss openapi.SecurityScheme) {
+//    ss.Type("apiKey").Name("X-API-KEY").In("header")
+// })
 ```
