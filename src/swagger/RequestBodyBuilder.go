@@ -1,9 +1,9 @@
 package swagger
 
 import (
-	openapi "github.com/ruiborda/go-swagger-generator/src/openapi"
-	entity "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
-	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
+	openapi "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+	entity "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
+	"github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
 )
 
 type RequestBodyBuilder struct {
