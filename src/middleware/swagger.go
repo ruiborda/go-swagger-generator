@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ruiborda/go-swagger-generator/src/swagger" // Updated import path if Swagger() is in swagger package directly
+	"github.com/ruiborda/go-swagger-generator/v2/src/swagger" // Updated import path if Swagger() is in swagger package directly
 	"html/template"
 	"net/http"
 )
