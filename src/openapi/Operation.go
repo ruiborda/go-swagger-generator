@@ -1,7 +1,7 @@
 package openapi
 
 import (
-	"github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
+	"github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
 )
 
 type Operation interface {
