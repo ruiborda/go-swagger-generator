@@ -1,15 +1,15 @@
 ---
 sidebar_position: 13
-title: Responses
+title: Responses (v2)
 ---
 
-# Documenting Responses
+# Documenting Responses (v2)
 
-This guide shows how to document API responses with go-swagger-generator using practical examples.
+This guide shows how to document API responses with Go-Swagger-Generator v2 for OpenAPI 3.0. Responses describe the output of an API operation for different HTTP status codes.
 
-## Basic Response
+## Basic Response (Single Object)
 
-Here's a simple example of documenting an endpoint with a basic response:
+Here's an example of documenting an endpoint that returns a single object (e.g., a Product DTO) for a successful operation.
 
 ```go
 package main
@@ -24,59 +24,57 @@ import (
 
 // Product DTO
 type Product struct {
-    ID          int64   `json:"id,omitempty"`
-    Name        string  `json:"name"`
-    Description string  `json:"description,omitempty"`
-    Price       float64 `json:"price"`
-    Category    string  `json:"category,omitempty"`
+    ID          int64   `json:"id,omitempty" yaml:"id,omitempty"`
+    Name        string  `json:"name" yaml:"name"`
+    Description string  `json:"description,omitempty" yaml:"description,omitempty"`
+    Price       float64 `json:"price" yaml:"price"`
+    Category    string  `json:"category,omitempty" yaml:"category,omitempty"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Product{})
 
 // Swagger documentation for GET /products/{productId}
-var _ = swagger.Swagger().Path("/products/{productId}").
+var _ = swagger.Swagger().Path("/products/{productId}"). // Path relative to server URL
     Get(func(op openapi.Operation) {
         op.Summary("Get product by ID").
-            Description("Returns a single product").
-            OperationID("getProductById").
-            Tag("products").
-            Produces(mime.ApplicationJSON).
+            Description("Returns a single product by its ID.").
+            OperationID("getProductByIdV2").
+            Tag("Product Operations").
             PathParameter("productId", func(p openapi.Parameter) {
-                p.Description("ID of product to return").
-                    Type("integer").Format("int64")
+                p.Description("ID of product to return").Required(true).
+                  Schema(func(s openapi.Schema) { s.Type("integer").Format("int64") })
             }).
-            Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Successful operation").
-                    SchemaFromDTO(&Product{})  // Generate schema from struct
+            Response(http.StatusOK, func(r openapi.Response) { // Define response for HTTP 200 OK
+                r.Description("Successful operation - product found").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) { // Specify content type
+                      mt.SchemaFromDTO(&Product{})  // Use Product DTO for the response schema
+                  })
+                // Optionally, add other content types like XML
+                // r.Content(mime.ApplicationXML, func(mt openapi.MediaType) {
+                //    mt.SchemaFromDTO(&Product{})
+                // })
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
                 r.Description("Product not found")
+                // Optionally, define a schema for the error response body
+                // r.Content(mime.ApplicationJSON, func(mt openapi.MediaType) { 
+                //     mt.Schema(openapi.S().Ref("#/components/schemas/ErrorModel")) 
+                // })
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func GetProductByID(c *gin.Context) {
-    productID := c.Param("productId")
-    
-    // Implementation details
-    product := Product{
-        ID:          1,
-        Name:        "Sample Product",
-        Description: "This is a sample product",
-        Price:       29.99,
-        Category:    "Electronics",
-    }
+    // productIdStr := c.Param("productId")
+    // Fetch product...
+    product := Product{ID: 1, Name: "Sample Laptop", Price: 999.99, Category: "Electronics"}
     c.JSON(http.StatusOK, product)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/products/:productId", GetProductByID)
 }
 ```
 
 ## Array Response
 
-This example shows how to document an endpoint that returns an array:
+This example shows how to document an endpoint that returns an array of objects.
 
 ```go
 package main
@@ -84,7 +82,6 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
@@ -92,49 +89,39 @@ import (
 
 // Pet DTO
 type Pet struct {
-    ID     int64  `json:"id,omitempty"`
-    Name   string `json:"name"`
-    Status string `json:"status,omitempty"` // available, pending, sold
+    ID     int64  `json:"id,omitempty" yaml:"id,omitempty"`
+    Name   string `json:"name" yaml:"name"`
+    Status string `json:"status,omitempty" yaml:"status,omitempty"`
 }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Pet{})
 
 // Swagger documentation for GET /pets
 var _ = swagger.Swagger().Path("/pets").
     Get(func(op openapi.Operation) {
-        op.Summary("List pets").
-            Description("Returns all pets in the system").
-            OperationID("listPets").
-            Tag("pets").
-            Produces(mime.ApplicationJSON).
+        op.Summary("List all pets").
+            Description("Returns an array of all pets in the system.").
+            OperationID("listPetsV2").
+            Tag("Pet Operations").
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("Array of pet objects").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type:  "array",
-                        Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/Pet"},
-                    })
+                r.Description("Successful operation - array of pets returned").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      // For an array response, use SchemaFromDTO with a pointer to a slice of DTO pointers
+                      mt.SchemaFromDTO(&[]*Pet{}) 
+                  })
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func ListPets(c *gin.Context) {
-    // Implementation details
-    pets := []Pet{
-        {ID: 1, Name: "Max", Status: "available"},
-        {ID: 2, Name: "Buddy", Status: "pending"},
-        {ID: 3, Name: "Charlie", Status: "sold"},
-    }
+    pets := []*Pet{{ID: 1, Name: "Buddy"}, {ID: 2, Name: "Lucy"}}
     c.JSON(http.StatusOK, pets)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/pets", ListPets)
 }
 ```
 
-## Multiple Response Status Codes
+## Multiple Response Status Codes with Different Schemas
 
-Here's an example of documenting endpoints with multiple response status codes:
+Endpoints often return different responses (and schemas) for different status codes (e.g., success vs. error codes).
 
 ```go
 package main
@@ -142,103 +129,54 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
 
-// User DTO
-type User struct {
-    ID       int64  `json:"id,omitempty"`
-    Username string `json:"username,omitempty"`
-    Email    string `json:"email,omitempty"`
-}
-
-// ErrorResponse DTO
-type ErrorResponse struct {
-    Code    int    `json:"code"`
-    Message string `json:"message"`
-}
+// User DTO & ErrorResponse DTO
+type User struct { ID int64 `json:"id"`; Username string `json:"username"`; Email string `json:"email"`; }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&User{})
+type ErrorResponse struct { Code int `json:"code"`; Message string `json:"message"`; Details string `json:"details,omitempty"`;}
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&ErrorResponse{})
 
 // Swagger documentation for POST /users
 var _ = swagger.Swagger().Path("/users").
     Post(func(op openapi.Operation) {
-        op.Summary("Create user").
-            Description("Create a new user account").
-            OperationID("createUser").
-            Tag("users").
-            Consumes(string(mime.ApplicationJSON)).
-            Produces(mime.ApplicationJSON).
-            BodyParameter(func(p openapi.Parameter) {
-                p.Description("User to create").
-                    Required(true).
-                    SchemaFromDTO(&User{})
-            }).
+        op.Summary("Create a new user").OperationID("createUserV2").Tag("User Operations").
+            RequestBody( /* ... define request body ... */ ).
             Response(http.StatusCreated, func(r openapi.Response) {
                 r.Description("User created successfully").
-                    SchemaFromDTO(&User{})
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) { mt.SchemaFromDTO(&User{}) })
             }).
             Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid user data").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "code": {Type: "integer", Format: "int32"},
-                            "message": {Type: "string"},
-                        },
-                    })
+                r.Description("Invalid user data supplied").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) { mt.SchemaFromDTO(&ErrorResponse{}) })
             }).
             Response(http.StatusConflict, func(r openapi.Response) {
-                r.Description("Username already exists").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "code": {Type: "integer", Format: "int32"},
-                            "message": {Type: "string"},
-                        },
-                    })
+                r.Description("Username or email already exists").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) { mt.SchemaFromDTO(&ErrorResponse{}) })
             }).
             Response(http.StatusInternalServerError, func(r openapi.Response) {
-                r.Description("Internal server error").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "code": {Type: "integer", Format: "int32"},
-                            "message": {Type: "string"},
-                        },
-                    })
+                r.Description("Internal server error encountered").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) { mt.SchemaFromDTO(&ErrorResponse{}) })
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func CreateUser(c *gin.Context) {
-    var user User
-    if err := c.ShouldBindJSON(&user); err != nil {
-        c.JSON(http.StatusBadRequest, ErrorResponse{
-            Code:    http.StatusBadRequest,
-            Message: "Invalid user data",
-        })
-        return
-    }
-    
-    // Implementation details (check if username exists, etc.)
-    
-    // If everything is successful
-    user.ID = 12345
-    c.JSON(http.StatusCreated, user)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.POST("/users", CreateUser)
+    // ... bind user data ...
+    // if validationFails { c.JSON(http.StatusBadRequest, ErrorResponse{...}); return }
+    // if conflict { c.JSON(http.StatusConflict, ErrorResponse{...}); return }
+    createdUser := User{ID: 1, Username: "newuser", Email: "new@example.com"}
+    c.JSON(http.StatusCreated, createdUser)
 }
 ```
 
 ## Response Headers
 
-This example demonstrates how to document response headers:
+This example demonstrates how to document custom headers returned in a response.
 
 ```go
 package main
@@ -246,44 +184,36 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
     "time"
 )
 
-// Swagger documentation for GET /auth/token
-var _ = swagger.Swagger().Path("/auth/token").
-    Get(func(op openapi.Operation) {
-        op.Summary("Get authentication token").
-            Description("Get a new authentication token").
-            OperationID("getAuthToken").
-            Tag("auth").
-            Produces(mime.ApplicationJSON).
-            QueryParameter("username", func(p openapi.Parameter) {
-                p.Description("Username for login").Required(true).Type("string")
-            }).
-            QueryParameter("password", func(p openapi.Parameter) {
-                p.Description("Password for login").Required(true).Type("string")
-            }).
+// Swagger documentation for POST /auth/login (example with headers)
+var _ = swagger.Swagger().Path("/auth/login").
+    Post(func(op openapi.Operation) {
+        op.Summary("User login").OperationID("loginUserV2").Tag("Auth Operations").
+            RequestBody( /* ... define login request body ... */ ).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").
-                    Schema(openapi_spec.SchemaEntity{Type: "string"}).
-                    Header("X-Rate-Limit", func(h openapi.Header) {
-                        h.Description("Rate limit per hour").
-                            Type("integer").
-                            Format("int32")
-                    }).
-                    Header("X-Expires-After", func(h openapi.Header) {
-                        h.Description("Date in UTC when token expires").
-                            Type("string").
-                            Format("date-time")
-                    }).
-                    Header("X-Request-ID", func(h openapi.Header) {
-                        h.Description("Unique request identifier").
-                            Type("string")
-                    })
+                r.Description("Login successful, token returned in body, rate limits in headers").
+                  Header("X-Rate-Limit-Limit", func(h openapi.Header) {
+                      h.Description("The number of allowed requests in the current period").
+                        Schema(func(s openapi.Schema) { s.Type("integer") })
+                  }).
+                  Header("X-Rate-Limit-Remaining", func(h openapi.Header) {
+                      h.Description("The number of remaining requests in the current period").
+                        Schema(func(s openapi.Schema) { s.Type("integer") })
+                  }).
+                  Header("X-Token-Expires-At", func(h openapi.Header) {
+                      h.Description("Timestamp when the authentication token expires").
+                        Schema(func(s openapi.Schema) { s.Type("string").Format("date-time") })
+                  }).
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) { // Schema for login token response
+                          s.Type("object").Property("token", func(ps openapi.Schema){ ps.Type("string") })
+                      })
+                  })
             }).
             Response(http.StatusUnauthorized, func(r openapi.Response) {
                 r.Description("Invalid credentials")
@@ -291,31 +221,19 @@ var _ = swagger.Swagger().Path("/auth/token").
     }).
     Doc()
 
-// Handler function
-func GetAuthToken(c *gin.Context) {
-    username := c.Query("username")
-    password := c.Query("password")
-    
-    // Authentication logic
-    
-    // Set response headers
-    c.Header("X-Rate-Limit", "1000")
-    c.Header("X-Expires-After", time.Now().Add(24*time.Hour).UTC().Format(time.RFC3339))
-    c.Header("X-Request-ID", "req-123-abc-456-def")
-    
-    // Return token
-    c.String(http.StatusOK, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U")
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/auth/token", GetAuthToken)
+// Handler function (example)
+func LoginUser(c *gin.Context) {
+    // ... authenticate user ...
+    c.Header("X-Rate-Limit-Limit", "1000")
+    c.Header("X-Rate-Limit-Remaining", "999")
+    c.Header("X-Token-Expires-At", time.Now().Add(1*time.Hour).Format(time.RFC3339))
+    c.JSON(http.StatusOK, gin.H{"token": "dummy-jwt-token"})
 }
 ```
 
 ## Paginated Response
 
-Here's how to document a paginated response:
+Here's how to document a response that is paginated, often returning metadata alongside the data array.
 
 ```go
 package main
@@ -323,128 +241,65 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
-    "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
     "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
-    "strconv"
+    // "strconv"
 )
 
 // Article DTO
-type Article struct {
-    ID      int64  `json:"id,omitempty"`
-    Title   string `json:"title"`
-    Content string `json:"content,omitempty"`
-    Author  string `json:"author,omitempty"`
-}
+type Article struct { ID int64 `json:"id"`; Title string `json:"title"`; }
+// _, _ = swagger.Swagger().ComponentSchemaFromDTO(&Article{})
 
-// PagedResponse represents a generic paginated response
-type PagedResponse struct {
-    Page       int         `json:"page"`
-    PageSize   int         `json:"pageSize"`
-    TotalPages int         `json:"totalPages"`
-    TotalItems int         `json:"totalItems"`
-    Data       interface{} `json:"data"`
-}
+// PagedResponse - Generic DTO for paginated responses. Could also be defined inline.
+// type PagedResponse struct {
+// Page       int         `json:"page"`
+// PageSize   int         `json:"pageSize"`
+// TotalPages int         `json:"totalPages"`
+// TotalItems int         `json:"totalItems"`
+// Data       interface{} `json:"data"` // Use specific type like []*Article here
+// }
 
 // Swagger documentation for GET /articles
 var _ = swagger.Swagger().Path("/articles").
     Get(func(op openapi.Operation) {
-        op.Summary("List articles").
-            Description("Get a paginated list of articles").
-            OperationID("listArticles").
-            Tag("articles").
-            Produces(mime.ApplicationJSON).
-            QueryParameter("page", func(p openapi.Parameter) {
-                p.Description("Page number").
-                    Type("integer").
-                    Format("int32").
-                    Minimum(1, false).
-                    Default(1)
-            }).
-            QueryParameter("pageSize", func(p openapi.Parameter) {
-                p.Description("Items per page").
-                    Type("integer").
-                    Format("int32").
-                    Minimum(1, false).
-                    Maximum(100, false).
-                    Default(20)
-            }).
+        op.Summary("List articles with pagination").OperationID("listArticlesV2").Tag("Article Operations").
+            QueryParameter("page", func(p openapi.Parameter) { /* ... */ }).
+            QueryParameter("pageSize", func(p openapi.Parameter) { /* ... */ }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("successful operation").
-                    Schema(openapi_spec.SchemaEntity{
-                        Type: "object",
-                        Properties: map[string]*openapi_spec.SchemaEntity{
-                            "page": {
-                                Type:        "integer",
-                                Format:      "int32",
-                                Description: "Current page number",
-                            },
-                            "pageSize": {
-                                Type:        "integer",
-                                Format:      "int32",
-                                Description: "Number of items per page",
-                            },
-                            "totalPages": {
-                                Type:        "integer",
-                                Format:      "int32",
-                                Description: "Total number of pages",
-                            },
-                            "totalItems": {
-                                Type:        "integer",
-                                Format:      "int32",
-                                Description: "Total number of items",
-                            },
-                            "data": {
-                                Type:  "array",
-                                Items: &openapi_spec.SchemaEntity{Ref: "#/definitions/Article"},
-                            },
-                        },
-                    })
-            }).
-            Response(http.StatusBadRequest, func(r openapi.Response) {
-                r.Description("Invalid parameters")
+                r.Description("Successful operation - paginated list of articles").
+                  Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                      mt.Schema(func(s openapi.Schema) { // Inline schema for paginated response structure
+                          s.Type("object").
+                            Property("page", func(ps openapi.Schema){ ps.Type("integer").Description("Current page number") }).
+                            Property("pageSize", func(ps openapi.Schema){ ps.Type("integer").Description("Number of items per page") }).
+                            Property("totalPages", func(ps openapi.Schema){ ps.Type("integer").Description("Total number of pages") }).
+                            Property("totalItems", func(ps openapi.Schema){ ps.Type("integer").Description("Total number of items") }).
+                            Property("data", func(ps openapi.Schema){ // The actual data array
+                                ps.Type("array").Items(openapi.S().Ref("#/components/schemas/Article"))
+                            })
+                      })
+                  })
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func ListArticles(c *gin.Context) {
-    pageStr := c.DefaultQuery("page", "1")
-    pageSizeStr := c.DefaultQuery("pageSize", "20")
-    
-    page, _ := strconv.Atoi(pageStr)
-    pageSize, _ := strconv.Atoi(pageSizeStr)
-    
-    // Implementation details
-    
-    // Sample data
-    articles := []Article{
-        {ID: 1, Title: "First Article", Content: "This is the content", Author: "John Doe"},
-        {ID: 2, Title: "Second Article", Content: "More content here", Author: "Jane Smith"},
+    // page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    // pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+    articles := []*Article{{ID: 1, Title: "Intro to OpenAPI"}}
+    response := gin.H{
+        "page": 1, "pageSize": 20, "totalPages": 5, "totalItems": 100,
+        "data": articles,
     }
-    
-    // Construct paginated response
-    response := PagedResponse{
-        Page:       page,
-        PageSize:   pageSize,
-        TotalPages: 5,
-        TotalItems: 100,
-        Data:       articles,
-    }
-    
     c.JSON(http.StatusOK, response)
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/articles", ListArticles)
 }
 ```
 
 ## File Download Response
 
-This example shows how to document a file download response:
+Documenting a file download, where the response body is the file content.
 
 ```go
 package main
@@ -452,6 +307,7 @@ package main
 import (
     "github.com/gin-gonic/gin"
     "github.com/ruiborda/go-swagger-generator/src/openapi"
+    "github.com/ruiborda/go-swagger-generator/src/openapi_spec/mime"
     "github.com/ruiborda/go-swagger-generator/src/swagger"
     "net/http"
 )
@@ -459,59 +315,48 @@ import (
 // Swagger documentation for GET /reports/{reportId}/download
 var _ = swagger.Swagger().Path("/reports/{reportId}/download").
     Get(func(op openapi.Operation) {
-        op.Summary("Download report").
-            Description("Download a report file").
-            OperationID("downloadReport").
-            Tag("reports").
-            Produces("application/pdf", "application/vnd.ms-excel", "text/csv").
-            PathParameter("reportId", func(p openapi.Parameter) {
-                p.Description("ID of the report to download").
-                    Type("integer").Format("int64")
-            }).
-            QueryParameter("format", func(p openapi.Parameter) {
-                p.Description("File format").
-                    Type("string").
-                    Enum("pdf", "excel", "csv").
-                    Default("pdf")
+        op.Summary("Download a report file").OperationID("downloadReportV2").Tag("Report Operations").
+            PathParameter("reportId", func(p openapi.Parameter) { /* ... */ }).
+            QueryParameter("format", func(p openapi.Parameter) { // e.g., format=pdf or format=csv
+                p.Description("File format for download").Required(false).
+                  Schema(func(s openapi.Schema){ s.Type("string").Enum("pdf", "csv", "xlsx").Default("pdf") })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
-                r.Description("File downloaded successfully")
+                r.Description("Report file downloaded successfully").
+                  // Multiple content types can be specified if the format query param changes the output type
+                  Content(mime.ApplicationPdf, func(mt openapi.MediaType) { // For PDF
+                      mt.Schema(func(s openapi.Schema) { s.Type("string").Format("binary") })
+                  }).
+                  Content("text/csv", func(mt openapi.MediaType) { // For CSV
+                      mt.Schema(func(s openapi.Schema) { s.Type("string").Format("binary") })
+                  })
+                // For a single known binary type, only one Content entry is needed.
             }).
             Response(http.StatusNotFound, func(r openapi.Response) {
-                r.Description("Report not found")
+                r.Description("Report not found or format unavailable")
             })
     }).
     Doc()
 
-// Handler function
+// Handler function (example)
 func DownloadReport(c *gin.Context) {
-    reportID := c.Param("reportId")
+    // reportID := c.Param("reportId")
     format := c.DefaultQuery("format", "pdf")
-    
-    // Implementation details
-    
-    // Set file headers
     var contentType string
-    var filename string
+    var fileData []byte // Your report data
     
     switch format {
     case "pdf":
-        contentType = "application/pdf"
-        filename = "report_" + reportID + ".pdf"
-    case "excel":
-        contentType = "application/vnd.ms-excel"
-        filename = "report_" + reportID + ".xlsx"
+        contentType = mime.ApplicationPdf
+        fileData = []byte("%PDF-1.4 sample PDF content")
     case "csv":
         contentType = "text/csv"
-        filename = "report_" + reportID + ".csv"
+        fileData = []byte("col1,col2\nval1,val2")
+    default:
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported format"})
+        return
     }
-    
-    c.Header("Content-Disposition", "attachment; filename="+filename)
-    c.Data(http.StatusOK, contentType, []byte("Sample file content"))
-}
-
-// Router setup
-func setupRoutes(router *gin.Engine) {
-    router.GET("/reports/:reportId/download", DownloadReport)
+    c.Header("Content-Disposition", "attachment; filename=report."+format)
+    c.Data(http.StatusOK, contentType, fileData)
 }
 ```
