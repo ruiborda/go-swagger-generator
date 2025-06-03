@@ -2,8 +2,8 @@ package swagger
 
 import (
 	"fmt"
-	openapi "github.com/ruiborda/go-swagger-generator/src/openapi"
-	entity "github.com/ruiborda/go-swagger-generator/src/openapi_spec"
+	openapi "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
+	entity "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
 	"reflect"
 	"strings"
 	"sync"
