@@ -19,27 +19,34 @@ function HomepageHeader() {
         </Heading>
         <div className="padding-top--md" style={{maxWidth: 650, margin: '0 auto', textAlign: 'left'}}>
           <CodeBlock language="go" className={styles.codePreview}>
-            {`// Swagger documentation for a Go API
-var _ = swagger.Swagger().Path("/users/{id}").
+            {`// OpenAPI 3.0 documentation for a Go API (using Go Swagger Generator v2)
+var _ = swagger.Swagger().Path("/users/{id}"). // Path relative to server base URL
     Get(func(op openapi.Operation) {
         op.Summary("Find user by ID").
             Tag("UserController").
-            Produce(mime.ApplicationJSON).
+            OperationID("getUserByIdV2").
             PathParameter("id", func(p openapi.Parameter) {
-                p.Required(true).Type("integer")
+                p.Required(true).
+                  Description("User ID").
+                  Schema(func(s openapi.Schema) {
+                      s.Type("integer").Format("int64")
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
                 r.Description("successful operation").
-                    SchemaFromDTO(UserDto{})
+                    Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                        mt.SchemaFromDTO(UserDto{}) // Assumes UserDto is defined
+                    })
             })
     }).
     Doc()
+
 // Gin handler
 func GetUserById(c *gin.Context) {
 	id := c.Param("id")
-	c.JSON(200, gin.H{
-		"id":   id,
-		"name": "John Doe",
+	c.JSON(http.StatusOK, UserDto{
+		ID:   id, // Simplified, parse 'id' to appropriate type
+		Name: "John Doe",
 	})
 }`}
           </CodeBlock>
@@ -64,26 +71,32 @@ function QuickStartSection() {
         <div className="row">
           <div className="col col--12">
             <Heading as="h2" className="text--center">
-              Generate Swagger Documentation with Go
+              Generate OpenAPI 3.0 Documentation with Go
             </Heading>
             <p className="text--center padding-vert--md">
-              Go Swagger Generator lets you document your Go APIs with Swagger/OpenAPI in minutes
+              Go Swagger Generator v2 lets you document your Go APIs with OpenAPI 3.0 in minutes
             </p>
             
             <div className="padding-top--md" style={{maxWidth: 700, margin: '0 auto'}}>
               <CodeBlock language="go" className={styles.codePreview}>
-{`// Define an endpoint with its Swagger documentation
-var _ = swagger.Swagger().Path("/users/{id}").
+{`// Define an endpoint with its OpenAPI 3.0 documentation
+var _ = swagger.Swagger().Path("/users/{id}"). // Path relative to server base URL
     Get(func(op openapi.Operation) {
         op.Summary("Find user by ID").
             Tag("UserController").
-            Produce(mime.ApplicationJSON).
+            OperationID("getUserByIdV2Example").
             PathParameter("id", func(p openapi.Parameter) {
-                p.Required(true).Type("integer")
+                p.Required(true).
+                  Description("User ID").
+                  Schema(func(s openapi.Schema) {
+                      s.Type("integer").Format("int64")
+                  })
             }).
             Response(http.StatusOK, func(r openapi.Response) {
                 r.Description("successful operation").
-                    SchemaFromDTO(UserDto{})
+                    Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+                        mt.SchemaFromDTO(UserDto{}) // Assumes UserDto is defined
+                    })
             })
     }).
     Doc()`}
@@ -110,8 +123,8 @@ export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title} - Swagger Documentation Generator for Go`}
-      description="Go Swagger Generator - A library for generating Swagger/OpenAPI documentation for Go APIs">
+      title={`${siteConfig.title} - OpenAPI 3.0 Documentation Generator for Go`}
+      description="Go Swagger Generator v2 - A library for generating OpenAPI 3.0 documentation for Go APIs">
       <HomepageHeader />
       <main>
         <HomepageFeatures />
