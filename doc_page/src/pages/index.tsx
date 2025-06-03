@@ -18,6 +18,12 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <div className="padding-top--md" style={{maxWidth: 650, margin: '0 auto', textAlign: 'left'}}>
+          <CodeBlock language="bash" className={styles.codePreview}>
+            {`# Instala Go Swagger Generator v2
+ go get github.com/ruiborda/go-swagger-generator/v2`}
+          </CodeBlock>
+        </div>
+        <div className="padding-top--md" style={{maxWidth: 650, margin: '0 auto', textAlign: 'left'}}>
           <CodeBlock language="go" className={styles.codePreview}>
             {`// OpenAPI 3.0 documentation for a Go API (using Go Swagger Generator v2)
 var _ = swagger.Swagger().Path("/users/{id}"). // Path relative to server base URL
