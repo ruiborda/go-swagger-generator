@@ -16,5 +16,6 @@ sidebar_position: 2
 
 1. [Quick Start](quick-start.md)
 2. [Defining Models (Schemas)](defining-models.md)
-3. [Security Schemes](security.md)
-4. [Production Configuration](production.md)
+3. [Generic DTO Support](generics.md) <---- NUEVO
+4. [Security Schemes](security.md)
+5. [Production Configuration](production.md)

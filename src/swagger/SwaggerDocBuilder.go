@@ -5,6 +5,7 @@ import (
 	openapi "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
 	entity "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -114,6 +115,34 @@ func (b *SwaggerDocBuilder) ComponentSchemaRef(name string, ref string) openapi.
 	return b
 }
 
+// generateComponentSchemaName creates a unique schema name for a type by sanitizing its full string representation.
+// This is crucial for handling generic types correctly.
+func (b *SwaggerDocBuilder) generateComponentSchemaName(typ reflect.Type) string {
+	nameStr := typ.String() // e.g., "main.Response[main.UserData]", "[]*main.UserData", "main.NonGenericStruct"
+
+	// Replace package paths (e.g., "main.Type" -> "main_Type", "pkg.Type" -> "pkg_Type")
+	s := strings.ReplaceAll(nameStr, ".", "_")
+
+	// Handle pointers and slices in a consistent way for type arguments or nested generics
+	s = strings.ReplaceAll(s, "*", "Ptr")     // *pkg_Type -> PtrPkg_Type
+	s = strings.ReplaceAll(s, "[]", "ListOf") // []pkg_Type -> ListOfPkg_Type (consistent with top-level slice naming)
+
+	// Handle generic type bracketing and multiple type arguments
+	s = strings.ReplaceAll(s, "[", "_") // pkg_Response[pkg_Data] -> pkg_Response_pkg_Data]
+	s = strings.ReplaceAll(s, "]", "")  // pkg_Response_pkg_Data] -> pkg_Response_pkg_Data
+	s = strings.ReplaceAll(s, ",", "_") // For types like T[A, B]
+
+	// Clean up any resulting multiple underscores and leading/trailing underscores
+	reg := regexp.MustCompile(`_+`)
+	s = reg.ReplaceAllString(s, "_")
+	s = strings.Trim(s, "_")
+
+	// If the original type was a simple non-generic struct like "main.MyData",
+	// it would become "main_MyData". If we prefer "MyData", we might strip common package prefixes.
+	// For now, this comprehensive naming ensures uniqueness.
+	return s
+}
+
 // SchemaFromDTO generates a schema from a DTO and adds it to components.schemas.
 // It returns the name of the generated schema.
 func (b *SwaggerDocBuilder) SchemaFromDTO(dtoInstance interface{}) (string, error) {
@@ -126,65 +155,61 @@ func (b *SwaggerDocBuilder) SchemaFromDTO(dtoInstance interface{}) (string, erro
 	if b.doc.Components.Schemas == nil {
 		b.doc.Components.Schemas = make(map[string]*entity.SchemaRef)
 	}
-	// processedInThisCall is a map to track types processed within this top-level SchemaFromDTO call
-	// to avoid re-processing the same component if encountered multiple times or through recursion.
-	return b.schemaFromDTORecursive(dtoInstance, make(map[reflect.Type]string))
+	return b.schemaFromDTORecursive(dtoInstance, make(map[string]string))
 }
 
 // schemaFromDTORecursive is the internal implementation for SchemaFromDTO.
 // It assumes definitionsMux is already locked.
-// processedInThisCall tracks types (reflect.Type) to their component names (string)
+// processedInThisCall tracks types (reflect.Type.String()) to their component names (string)
 // that have already been initiated or completed within the *current* top-level SchemaFromDTO call chain.
-func (b *SwaggerDocBuilder) schemaFromDTORecursive(dtoInstance interface{}, processedInThisCall map[reflect.Type]string) (string, error) {
-	originalDtoType := reflect.TypeOf(dtoInstance)
-	currentDtoType := originalDtoType
-
-	// Handle nil input gracefully, perhaps by returning an error or a specific schema name for null type.
+func (b *SwaggerDocBuilder) schemaFromDTORecursive(dtoInstance interface{}, processedInThisCall map[string]string) (string, error) {
 	if dtoInstance == nil {
-		// Depending on desired behavior, could define a generic 'Null' schema or similar.
-		// For now, error out or treat as an issue, as DTOs are expected to be typed.
 		return "", fmt.Errorf("SchemaFromDTO called with nil DTO instance")
 	}
 
+	originalDtoType := reflect.TypeOf(dtoInstance)
+	currentDtoType := originalDtoType
+	originalDtoTypeString := originalDtoType.String() // Use .String() for unique key with generics
+
 	if currentDtoType.Kind() == reflect.Ptr {
-		// If pointer is nil, create a new instance of the pointed-to type to proceed with type analysis.
-		// This is important for recursive calls like `elementInstance` for slices.
 		if reflect.ValueOf(dtoInstance).IsNil() {
 			dtoInstance = reflect.New(currentDtoType.Elem()).Interface()
 		}
 		currentDtoType = currentDtoType.Elem()
 	}
 
-	// Check if this exact original type has already been processed or started in this call chain.
-	if componentName, ok := processedInThisCall[originalDtoType]; ok {
+	if componentName, ok := processedInThisCall[originalDtoTypeString]; ok {
 		return componentName, nil
 	}
 
-	// Handle slices/arrays
 	if currentDtoType.Kind() == reflect.Slice || currentDtoType.Kind() == reflect.Array {
-		elementType := currentDtoType.Elem() // Type of the elements in the slice/array
+		elementType := currentDtoType.Elem()
 		baseElementType := elementType
 		if baseElementType.Kind() == reflect.Ptr {
 			baseElementType = baseElementType.Elem()
 		}
 
 		if baseElementType.Kind() != reflect.Struct {
-			return "", fmt.Errorf("slice/array element DTO must be a struct or pointer to struct, got %s for element of %s", baseElementType.Kind(), currentDtoType.String())
+			// Allow slices of basic types, they don't become components but are valid schemas.
+			// For SchemaFromDTO, the top level should ideally be a struct or slice of structs.
+			// If it's a slice of primitives, it won't be a named component.
+			// This function is for creating named components primarily.
+			// For a slice of primitives, a schema can be generated but not registered as a named component via this path.
+			return "", fmt.Errorf("slice/array element DTO for component registration must be a struct or pointer to struct, got %s for element of %s", baseElementType.Kind(), currentDtoType.String())
 		}
 
-		// Create a zero-value instance of the base element type for recursive call.
 		elementInstance := reflect.New(baseElementType).Interface()
-
 		elementComponentName, err := b.schemaFromDTORecursive(elementInstance, processedInThisCall)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate schema for slice/array element type %s: %w", baseElementType.Name(), err)
 		}
 
-		listDtoName := "ListOf" + elementComponentName
+		// Use generateComponentSchemaName for consistency, although ListOf<Name> is also common.
+		// listDtoName := "ListOf" + elementComponentName
+		listDtoName := b.generateComponentSchemaName(currentDtoType) // e.g. ListOf_pkg_MyData
 
-		// Check if this list component (e.g., "ListOfUserResponse") is already globally defined.
 		if _, exists := b.doc.Components.Schemas[listDtoName]; exists {
-			processedInThisCall[originalDtoType] = listDtoName // Cache for this call chain.
+			processedInThisCall[originalDtoTypeString] = listDtoName
 			return listDtoName, nil
 		}
 
@@ -195,94 +220,79 @@ func (b *SwaggerDocBuilder) schemaFromDTORecursive(dtoInstance interface{}, proc
 			},
 		}
 		b.doc.Components.Schemas[listDtoName] = &entity.SchemaRef{Schema: arraySchema}
-		processedInThisCall[originalDtoType] = listDtoName // Cache for this call chain.
+		processedInThisCall[originalDtoTypeString] = listDtoName
 		return listDtoName, nil
 	}
 
-	// Handle structs
 	if currentDtoType.Kind() == reflect.Struct {
-		structDtoName := currentDtoType.Name()
-		if structDtoName == "" {
-			return "", fmt.Errorf("anonymous structs cannot be registered as top-level DTOs via SchemaFromDTO")
+		structDtoName := b.generateComponentSchemaName(currentDtoType)
+		if currentDtoType.Name() == "" && !strings.Contains(currentDtoType.String(), "[") { // Check if it's truly anonymous and not a generic struct
+			// Anonymous, non-generic structs cannot be top-level components.
+			// Generic structs like somepkg.Gen[T] will have Name() but are fine.
+			return "", fmt.Errorf("anonymous structs cannot be registered as top-level DTOs via SchemaFromDTO: %s", currentDtoType.String())
 		}
 
-		// Check if this struct component is already globally defined (e.g., from a previous SchemaFromDTO call or deeper recursion).
 		if _, exists := b.doc.Components.Schemas[structDtoName]; exists {
-			// If it exists, its processing has either completed or is in progress higher up the stack.
-			// processedInThisCall check at the beginning handles if we started it in this chain.
-			// If not in processedInThisCall, it's either fully done globally or a placeholder from recursion.
-			// In any case, its name is now known and usable.
-			processedInThisCall[originalDtoType] = structDtoName
+			processedInThisCall[originalDtoTypeString] = structDtoName
 			return structDtoName, nil
 		}
 
-		// New struct component for global registration: add placeholder and mark as processed for this call chain.
-		b.doc.Components.Schemas[structDtoName] = &entity.SchemaRef{Ref: "#/components/schemas/" + structDtoName} // Placeholder for recursion
-		processedInThisCall[originalDtoType] = structDtoName                                                      // Mark as started in this chain
+		b.doc.Components.Schemas[structDtoName] = &entity.SchemaRef{Ref: "#/components/schemas/" + structDtoName} // Placeholder
+		processedInThisCall[originalDtoTypeString] = structDtoName
 
 		generatedSchema, err := b.generateSchemaFromGoType(currentDtoType, make(map[string]bool), structDtoName)
 		if err != nil {
-			delete(b.doc.Components.Schemas, structDtoName) // Clean up placeholder
-			delete(processedInThisCall, originalDtoType)    // Clean up cache entry for this attempt
+			delete(b.doc.Components.Schemas, structDtoName)
+			delete(processedInThisCall, originalDtoTypeString)
 			return "", fmt.Errorf("failed to generate schema for DTO struct %s: %w", structDtoName, err)
 		}
 
-		// generateSchemaFromGoType for the top-level struct (structDtoName) should NOT return a Ref itself.
 		if generatedSchema.Ref != "" {
-			delete(b.doc.Components.Schemas, structDtoName) // Clean up placeholder
-			delete(processedInThisCall, originalDtoType)
+			delete(b.doc.Components.Schemas, structDtoName)
+			delete(processedInThisCall, originalDtoTypeString)
 			return "", fmt.Errorf("internal error: generateSchemaFromGoType for component %s returned a $ref ('%s'), expected full schema definition", structDtoName, generatedSchema.Ref)
 		}
 
-		// Update placeholder with the fully generated schema.
 		b.doc.Components.Schemas[structDtoName] = &entity.SchemaRef{Schema: generatedSchema}
 		return structDtoName, nil
 	}
 
-	// If not a slice, array, or struct, it's an unsupported DTO type for top-level registration.
 	return "", fmt.Errorf("DTO must be a struct, pointer to struct, slice/array of structs, or pointer to slice/array of structs, got %s", originalDtoType.String())
 }
 
 // generateSchemaFromGoType converts a Go type to an OpenAPI Schema object.
-// visited map is used to handle recursive types for the *current* struct's fields.
+// visited map (keyed by type.String()) is used to handle recursive types for the *current* struct's fields.
 // currentlyDefiningCompName is the name of the component schema that SchemaFromDTO is currently trying to define.
-// This is used to prevent generateSchemaFromGoType from short-circuiting with a $ref for the component it's meant to be defining.
 func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map[string]bool, currentlyDefiningCompName string) (*entity.Schema, error) {
-	originalTypeFullName := t.PkgPath() + "." + t.Name() // For visited map key
+	originalTypeString := t.String() // Use .String() for unique key with generics
 
-	// Dereference pointer types to get the underlying type
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 
-	// Handle named types (structs, interfaces potentially) that might be components or part of a recursion cycle.
-	if t.Name() != "" && t.Kind() == reflect.Struct { // Only consider structs for component/recursion logic here
-		// 1. Cycle detection within the current struct's field expansion:
-		// If this exact type (package + name) is already in the visited set for the current struct's fields.
-		if visited[originalTypeFullName] {
-			return &entity.Schema{Ref: "#/components/schemas/" + t.Name()}, nil
+	if t.Name() != "" && t.Kind() == reflect.Struct { // Named structs (generic or non-generic)
+		potentialComponentName := b.generateComponentSchemaName(t)
+
+		if visited[originalTypeString] {
+			// Cycle detected for the current struct's field expansion. This type is already being processed.
+			// If this is the component being defined, this recursive call should refer to it.
+			// If it's another component, it should also refer to its global name.
+			return &entity.Schema{Ref: "#/components/schemas/" + potentialComponentName}, nil
 		}
 
-		// 2. Pre-existing component or different recursive struct:
-		// If this type is NOT the one being primarily defined by SchemaFromDTO (i.e., t.Name() != currentlyDefiningCompName)
-		// AND it IS already registered as a component (e.g., by a prior SchemaFromDTO call or another branch of current one).
-		if t.Name() != currentlyDefiningCompName {
-			if _, isComponent := b.doc.Components.Schemas[t.Name()]; isComponent {
-				// This refers to a different, already known component. Safe to return $ref.
-				return &entity.Schema{Ref: "#/components/schemas/" + t.Name()}, nil
+		if potentialComponentName != currentlyDefiningCompName {
+			if _, isComponent := b.doc.Components.Schemas[potentialComponentName]; isComponent {
+				// This refers to a different, already known (or placeholder for) component.
+				return &entity.Schema{Ref: "#/components/schemas/" + potentialComponentName}, nil
 			}
 		}
+		// If potentialComponentName == currentlyDefiningCompName, we must expand it (not ref).
+		// If it's not currentlyDefiningCompName AND not yet a component, expand it inline (unless it becomes one via SchemaFromDTO during field processing).
 
-		// If we are here, it means for a named struct:
-		// - It's NOT a cycle in the current field expansion (not in `visited`).
-		// - AND (it IS the `currentlyDefiningCompName` OR it's another struct not yet a component).
-		// In these cases, we need to expand its fields.
-		// Add to visited map for this struct's expansion cycle detection.
-		visited[originalTypeFullName] = true
-		defer delete(visited, originalTypeFullName) // Remove from visited after its fields are processed
+		visited[originalTypeString] = true
+		defer delete(visited, originalTypeString)
 	}
 
-	// Special handling for time.Time
 	if t.PkgPath() == "time" && t.Name() == "Time" && t.Kind() == reflect.Struct {
 		return &entity.Schema{Type: "string", Format: "date-time"}, nil
 	}
@@ -300,12 +310,12 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 		schema.Format = "int64"
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
 		schema.Type = "integer"
-		schema.Format = "int32" // OpenAPI does not have uint32, use int32 with minimum: 0
+		schema.Format = "int32"
 		minValue := 0.0
 		schema.Minimum = &minValue
 	case reflect.Uint64:
 		schema.Type = "integer"
-		schema.Format = "int64" // OpenAPI does not have uint64, use int64 with minimum: 0
+		schema.Format = "int64"
 		minValue := 0.0
 		schema.Minimum = &minValue
 	case reflect.Float32:
@@ -320,11 +330,6 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 	case reflect.Slice, reflect.Array:
 		schema.Type = "array"
 		elemType := t.Elem()
-
-		// Recursively generate schema for the element type, passing current `visited` and `currentlyDefiningCompName`.
-		// If elemType is a struct that matches `currentlyDefiningCompName`, generateSchemaFromGoType will correctly return a $ref to it
-		// because it will hit the `visited[originalTypeFullName]` check (if direct recursion) or the `t.Name() == currentlyDefiningCompName` logic combined with `isComponent`
-		// (if that component's definition process has started).
 		itemSchema, err := b.generateSchemaFromGoType(elemType, visited, currentlyDefiningCompName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate item schema for array/slice element type %s: %w", elemType.String(), err)
@@ -333,11 +338,13 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 		if itemSchema.Ref != "" {
 			schema.Items = &entity.SchemaRef{Ref: itemSchema.Ref}
 		} else {
+			// If itemSchema is complex but not a ref, ensure it's fully defined.
+			// If elemType is a struct that wasn't registered as a component (e.g. anonymous or not top-level DTO),
+			// its schema will be inline here.
 			schema.Items = &entity.SchemaRef{Schema: itemSchema}
 		}
 
 	case reflect.Struct:
-		// Note: time.Time handled above. Named structs also partially handled above for recursion/component checks.
 		schema.Type = "object"
 		schema.Properties = make(map[string]*entity.SchemaRef)
 		var requiredFields []string
@@ -391,7 +398,7 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 	case reflect.Map:
 		schema.Type = "object"
 		if t.Key().Kind() != reflect.String {
-			// Consider logging a warning, as OpenAPI map keys must be strings.
+			// OpenAPI map keys must be strings. Consider logging a warning or error.
 		}
 
 		valType := t.Elem()
@@ -511,11 +518,5 @@ func (b *SwaggerDocBuilder) ComponentCallback(name string, config func(openapi.C
 	}
 	// Proper CallbackBuilder would be needed for full implementation.
 	// This is a placeholder based on current structure.
-	// Callbacks are map[string]PathItem or map[string]$ref. Example structure:
-	// cbVal := entity.PathItem{}
-	// cbRef := &entity.CallbackRef{PathItem: &cbVal} // if CallbackRef wraps PathItem
-	// builder := &CallbackBuilder{...} // Requires CallbackBuilder and Callback interface logic
-	// config(builder)
-	// b.doc.Components.Callbacks[name] = cbRef
 	return b
 }
