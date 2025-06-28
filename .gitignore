@@ -1,4 +1,5 @@
 .idea
 *.py
+task.md
 output.json
 response.json

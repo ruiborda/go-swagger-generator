@@ -14,8 +14,7 @@ var swaggerDoc openapi.SwaggerDocBuilder
 var once sync.Once
 
 type SwaggerDocBuilder struct {
-	doc            *entity.SwaggerDocEntity
-	definitionsMux sync.Mutex // Used for DTO to Schema conversion
+	doc *entity.SwaggerDocEntity
 }
 
 // Swagger creates a new SwaggerDocBuilder instance for OAS3.
@@ -96,8 +95,6 @@ func (b *SwaggerDocBuilder) Path(pathPattern string) openapi.PathItem {
 }
 
 func (b *SwaggerDocBuilder) ComponentSchema(name string, schema entity.Schema) openapi.SwaggerDocBuilder {
-	b.definitionsMux.Lock()
-	defer b.definitionsMux.Unlock()
 	if b.doc.Components.Schemas == nil {
 		b.doc.Components.Schemas = make(map[string]*entity.SchemaRef)
 	}
@@ -106,8 +103,6 @@ func (b *SwaggerDocBuilder) ComponentSchema(name string, schema entity.Schema) o
 }
 
 func (b *SwaggerDocBuilder) ComponentSchemaRef(name string, ref string) openapi.SwaggerDocBuilder {
-	b.definitionsMux.Lock()
-	defer b.definitionsMux.Unlock()
 	if b.doc.Components.Schemas == nil {
 		b.doc.Components.Schemas = make(map[string]*entity.SchemaRef)
 	}
@@ -146,9 +141,6 @@ func (b *SwaggerDocBuilder) generateComponentSchemaName(typ reflect.Type) string
 // SchemaFromDTO generates a schema from a DTO and adds it to components.schemas.
 // It returns the name of the generated schema.
 func (b *SwaggerDocBuilder) SchemaFromDTO(dtoInstance interface{}) (string, error) {
-	b.definitionsMux.Lock()
-	defer b.definitionsMux.Unlock()
-
 	if b.doc.Components == nil {
 		b.doc.Components = &entity.Components{}
 	}

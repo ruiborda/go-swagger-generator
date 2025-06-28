@@ -39,29 +39,9 @@ func main() {
 	// Configure OpenAPI 3.0 documentation
 	ConfigureOpenAPI(router)
 
-	// Define API routes
-	// These handlers would typically serve actual data.
-	router.GET("/v1/userinfo", func(c *gin.Context) {
-		c.JSON(http.StatusOK, GenericResponse[UserData]{
-			Success: true,
-			Data:    UserData{ID: 1, Username: "johndoe", Email: "john.doe@example.com"},
-		})
-	})
-	router.GET("/v1/productinfo", func(c *gin.Context) {
-		c.JSON(http.StatusOK, GenericResponse[ProductData]{
-			Success: true,
-			Data:    ProductData{SKU: "PROD123", ProductName: "Awesome Gadget", Price: 99.99},
-		})
-	})
-	router.GET("/v1/userslist", func(c *gin.Context) {
-		c.JSON(http.StatusOK, GenericResponse[[]*UserData]{
-			Success: true,
-			Data: []*UserData{
-				{ID: 1, Username: "johndoe", Email: "john.doe@example.com"},
-				{ID: 2, Username: "janedoe", Email: "jane.doe@example.com"},
-			},
-		})
-	})
+	router.GET("/v1/userinfo", GetUserInfo)
+	router.GET("/v1/productinfo", GetProductInfo)
+	router.GET("/v1/userslist", GetUsersList)
 
 	fmt.Println("Server running on http://localhost:8080")
 	fmt.Println("Swagger UI available at http://localhost:8080/")
@@ -69,7 +49,6 @@ func main() {
 	_ = router.Run(":8080")
 }
 
-// ConfigureOpenAPI sets up the OpenAPI 3.0 documentation.
 func ConfigureOpenAPI(router *gin.Engine) {
 	router.Use(middleware.SwaggerGin(middleware.SwaggerConfig{
 		Enabled:  true,
@@ -89,63 +68,67 @@ func ConfigureOpenAPI(router *gin.Engine) {
 	doc.Server("http://localhost:8080/v1", func(server openapi.Server) {
 		server.Description("Local development server (v1)")
 	})
+}
 
-	// Register DTOs. SchemaFromDTO will now handle generic types.
-	// The generator should create component names like:
-	// - main_GenericResponse_main_UserData
-	// - main_GenericResponse_main_ProductData
-	// - main_GenericResponse_ListOf_main_UserData (or similar for slice type argument)
-	// It will also register UserData and ProductData if not already registered.
-	_, _ = doc.SchemaFromDTO(&GenericResponse[UserData]{})
-	_, _ = doc.SchemaFromDTO(&GenericResponse[ProductData]{})
-	_, _ = doc.SchemaFromDTO(&GenericResponse[[]*UserData]{}) // Generic with a slice type argument
-	// Individual DTOs also need to be registered if they are to be referenced directly or are complex.
-	_, _ = doc.SchemaFromDTO(&UserData{})
-	_, _ = doc.SchemaFromDTO(&ProductData{})
+var _ = swagger.Swagger().Path("/userinfo").
+	Get(func(op openapi.Operation) {
+		op.Summary("Get User Information").
+			Tag("Generic Examples").
+			OperationID("getUserInfo").
+			Response(http.StatusOK, func(r openapi.Response) {
+				r.Description("Successful operation - user data returned in generic response").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&GenericResponse[UserData]{})
+					})
+			})
+	}).Doc()
 
-	// Document an endpoint that returns GenericResponse[UserData]
-	doc.Path("/userinfo").
-		Get(func(op openapi.Operation) {
-			op.Summary("Get User Information").
-				Tag("Generic Examples").
-				OperationID("getUserInfo").
-				Response(http.StatusOK, func(r openapi.Response) {
-					r.Description("Successful operation - user data returned in generic response").
-						Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
-							mt.SchemaFromDTO(&GenericResponse[UserData]{})
-						})
-				})
-		}).Doc()
+func GetUserInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, GenericResponse[UserData]{
+		Success: true,
+		Data:    UserData{ID: 1, Username: "johndoe", Email: "john.doe@example.com"},
+	})
+}
 
-	// Document an endpoint that returns GenericResponse[ProductData]
-	doc.Path("/productinfo").
-		Get(func(op openapi.Operation) {
-			op.Summary("Get Product Information").
-				Tag("Generic Examples").
-				OperationID("getProductInfo").
-				Response(http.StatusOK, func(r openapi.Response) {
-					r.Description("Successful operation - product data returned in generic response").
-						Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
-							mt.SchemaFromDTO(&GenericResponse[ProductData]{})
-						})
-				})
-		}).Doc()
-	
-	// Document an endpoint that returns GenericResponse[[]*UserData]
-	doc.Path("/userslist").
-		Get(func(op openapi.Operation) {
-			op.Summary("Get List of Users Information").
-				Tag("Generic Examples").
-				OperationID("getUsersListInfo").
-				Response(http.StatusOK, func(r openapi.Response) {
-					r.Description("Successful operation - list of user data returned in generic response").
-						Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
-							// Note: The SchemaFromDTO for GenericResponse[[]*UserData] will register
-							// a component like 'main_GenericResponse_ListOf_main_UserData'.
-							// The 'ListOf_main_UserData' part itself might also be registered as a separate component
-							// if `doc.SchemaFromDTO(&[]*UserData{})` was called, or implicitly if needed.
-							mt.SchemaFromDTO(&GenericResponse[[]*UserData]{})
-						})
-				})
-		}).Doc()
+var _ = swagger.Swagger().Path("/productinfo").
+	Get(func(op openapi.Operation) {
+		op.Summary("Get Product Information").
+			Tag("Generic Examples").
+			OperationID("getProductInfo").
+			Response(http.StatusOK, func(r openapi.Response) {
+				r.Description("Successful operation - product data returned in generic response").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&GenericResponse[ProductData]{})
+					})
+			})
+	}).Doc()
+
+func GetProductInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, GenericResponse[ProductData]{
+		Success: true,
+		Data:    ProductData{SKU: "PROD123", ProductName: "Awesome Gadget", Price: 99.99},
+	})
+}
+
+var _ = swagger.Swagger().Path("/userslist").
+	Get(func(op openapi.Operation) {
+		op.Summary("Get List of Users Information").
+			Tag("Generic Examples").
+			OperationID("getUsersListInfo").
+			Response(http.StatusOK, func(r openapi.Response) {
+				r.Description("Successful operation - list of user data returned in generic response").
+					Content(mime.ApplicationJSON, func(mt openapi.MediaType) {
+						mt.SchemaFromDTO(&GenericResponse[[]*UserData]{})
+					})
+			})
+	}).Doc()
+
+func GetUsersList(c *gin.Context) {
+	c.JSON(http.StatusOK, GenericResponse[[]*UserData]{
+		Success: true,
+		Data: []*UserData{
+			{ID: 1, Username: "johndoe", Email: "john.doe@example.com"},
+			{ID: 2, Username: "janedoe", Email: "jane.doe@example.com"},
+		},
+	})
 }
