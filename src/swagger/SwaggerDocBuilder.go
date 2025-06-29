@@ -4,6 +4,8 @@ import (
 	"fmt"
 	openapi "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
 	entity "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
+	"log/slog"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -12,6 +14,8 @@ import (
 
 var swaggerDoc openapi.SwaggerDocBuilder
 var once sync.Once
+
+var swaggerDocLogger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{AddSource: true})).With("service", "swagger-generator-doc-builder")
 
 type SwaggerDocBuilder struct {
 	doc *entity.SwaggerDocEntity
@@ -116,7 +120,9 @@ func (b *SwaggerDocBuilder) generateComponentSchemaName(typ reflect.Type) string
 	nameStr := typ.String() // e.g., "main.Response[main.UserData]", "[]*main.UserData", "main.NonGenericStruct"
 
 	// Replace package paths (e.g., "main.Type" -> "main_Type", "pkg.Type" -> "pkg_Type")
-	s := strings.ReplaceAll(nameStr, ".", "_")
+	// Also handle slashes in package paths from external modules.
+	s := strings.ReplaceAll(nameStr, "/", "_")
+	s = strings.ReplaceAll(s, ".", "_")
 
 	// Handle pointers and slices in a consistent way for type arguments or nested generics
 	s = strings.ReplaceAll(s, "*", "Ptr")     // *pkg_Type -> PtrPkg_Type
@@ -234,6 +240,12 @@ func (b *SwaggerDocBuilder) schemaFromDTORecursive(dtoInstance interface{}, proc
 
 		generatedSchema, err := b.generateSchemaFromGoType(currentDtoType, make(map[string]bool), structDtoName)
 		if err != nil {
+			swaggerDocLogger.Error(
+				"generateSchemaFromGoType failed during component creation",
+				"component_name", structDtoName,
+				"dto_type", currentDtoType.String(),
+				"error", err,
+			)
 			delete(b.doc.Components.Schemas, structDtoName)
 			delete(processedInThisCall, originalDtoTypeString)
 			return "", fmt.Errorf("failed to generate schema for DTO struct %s: %w", structDtoName, err)
@@ -319,6 +331,13 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 	case reflect.Bool:
 		schema.Type = "boolean"
 
+	case reflect.Interface:
+		schema.Type = "object"
+		// TODO research
+		// OpenAPI does not support interface directly, so we use object.
+		// For interface{}, we generate an empty schema which means "any type" in OpenAPI.
+		// This is the most flexible and correct representation. It avoids the "unsupported type" error.
+
 	case reflect.Slice, reflect.Array:
 		schema.Type = "array"
 		elemType := t.Elem()
@@ -369,6 +388,13 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 
 			propSchema, err := b.generateSchemaFromGoType(field.Type, visited, currentlyDefiningCompName)
 			if err != nil {
+				swaggerDocLogger.Error(
+					"Recursive call to generateSchemaFromGoType failed for field",
+					"field_name", field.Name,
+					"field_type", field.Type.String(),
+					"parent_struct", t.String(),
+					"error", err,
+				)
 				return nil, fmt.Errorf("failed to generate schema for field '%s' in struct '%s': %w", field.Name, t.Name(), err)
 			}
 
@@ -406,6 +432,11 @@ func (b *SwaggerDocBuilder) generateSchemaFromGoType(t reflect.Type, visited map
 		}
 
 	default:
+		swaggerDocLogger.Error(
+			"Unsupported type for DTO schema generation",
+			"type", t.String(),
+			"kind", t.Kind().String(),
+		)
 		return nil, fmt.Errorf("unsupported type for DTO schema generation: %s (Kind: %s)", t.String(), t.Kind())
 	}
 

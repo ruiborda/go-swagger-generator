@@ -1,10 +1,15 @@
 package swagger
 
 import (
+	"fmt"
 	openapi "github.com/ruiborda/go-swagger-generator/v2/src/openapi"
 	entity "github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec"
 	"github.com/ruiborda/go-swagger-generator/v2/src/openapi_spec/mime"
+	"log/slog"
+	"os"
 )
+
+var requestBodyLogger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{AddSource: true})).With("service", "swagger-generator-request-body")
 
 type RequestBodyBuilder struct {
 	requestBody *entity.RequestBody
@@ -58,6 +63,11 @@ func (b *MediaTypeBuilder) Schema(config func(openapi.Schema)) openapi.MediaType
 func (b *MediaTypeBuilder) SchemaFromDTO(dto interface{}) openapi.MediaType {
 	dtoName, err := b.docBuilder.SchemaFromDTO(dto)
 	if err != nil {
+		requestBodyLogger.Error("SchemaFromDTO failed, schema will be empty", "error", err, "dto_type", fmt.Sprintf("%T", dto))
+		return b
+	}
+	if dtoName == "" {
+		requestBodyLogger.Warn("SchemaFromDTO returned empty name and no error", "dto_type", fmt.Sprintf("%T", dto))
 		return b
 	}
 	b.mediaType.Schema = &entity.SchemaRef{Ref: "#/components/schemas/" + dtoName}
