@@ -114,6 +114,7 @@ func configureSwagger() {
 
 	doc.GlobalSecurity(map[string][]string{
 		"BearerAuth": {},
+		"api_key":    {},
 	})
 
 }

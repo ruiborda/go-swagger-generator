@@ -10,49 +10,49 @@ package openapi_spec
 
 // SchemaRef can be a Schema object or a reference to one.
 type SchemaRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref     string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*Schema `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // ResponseRef can be a Response object or a reference to one.
 type ResponseRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref       string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*Response `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // ParameterRef can be a Parameter object or a reference to one.
 type ParameterRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref        string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*Parameter `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // ExampleRef can be an Example object or a reference to one.
 type ExampleRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref      string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*Example `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // RequestBodyRef can be a RequestBody object or a reference to one.
 type RequestBodyRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref          string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*RequestBody `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // HeaderRef can be a Header object or a reference to one.
 type HeaderRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref     string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*Header `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // SecuritySchemeRef can be a SecurityScheme object or a reference to one.
 type SecuritySchemeRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref             string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*SecurityScheme `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
 // LinkRef can be a Link object or a reference to one.
 type LinkRef struct {
-	Ref string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Ref   string `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	*Link `json:",inline,omitempty" yaml:",inline,omitempty"`
 }
 
@@ -70,7 +70,7 @@ type CallbackRef struct {
 type Link struct {
 	OperationRef string                 `json:"operationRef,omitempty" yaml:"operationRef,omitempty"`
 	OperationId  string                 `json:"operationId,omitempty" yaml:"operationId,omitempty"`
-	Parameters   map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty"` // Value can be an expression or any value.
+	Parameters   map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty"`   // Value can be an expression or any value.
 	RequestBody  interface{}            `json:"requestBody,omitempty" yaml:"requestBody,omitempty"` // Value can be an expression or any value.
 	Description  string                 `json:"description,omitempty" yaml:"description,omitempty"`
 	Server       *Server                `json:"server,omitempty" yaml:"server,omitempty"`

@@ -1,8 +1,8 @@
 package openapi_spec
 
 type SecurityScheme struct {
-	Type             string            `json:"type" yaml:"type"` // "apiKey", "http", "oauth2", "openIdConnect"
-	Description      string            `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        string `json:"type" yaml:"type"` // "apiKey", "http", "oauth2", "openIdConnect"
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
 	// For "apiKey"
 	Name string `json:"name,omitempty" yaml:"name,omitempty"` // REQUIRED if type is "apiKey"
@@ -32,5 +32,5 @@ type OAuthFlow struct {
 	AuthorizationUrl string            `json:"authorizationUrl,omitempty" yaml:"authorizationUrl,omitempty"` // REQUIRED for implicit, authorizationCode
 	TokenUrl         string            `json:"tokenUrl,omitempty" yaml:"tokenUrl,omitempty"`                 // REQUIRED for password, clientCredentials, authorizationCode
 	RefreshUrl       string            `json:"refreshUrl,omitempty" yaml:"refreshUrl,omitempty"`
-	Scopes           map[string]string `json:"scopes" yaml:"scopes"`                                         // REQUIRED. Key is scope name, value is description.
+	Scopes           map[string]string `json:"scopes" yaml:"scopes"` // REQUIRED. Key is scope name, value is description.
 }
